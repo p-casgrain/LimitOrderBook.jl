@@ -1,12 +1,22 @@
-
+using UnicodePlots: barplot
+using Base: show, print
 
 """
 Limit Order Book Object
+
+fields: 
+    `bid_orders::OneSideBook` - book of bid orders
+    `ask_orders::OneSideBook` - book of ask orders
+    `acct_map::Dict - Dict{Int64,AVLTree{Int64,Order}}` mapping account ids to orders
+
+Initialize empty book: `OrderBook()`
+
 """
 @kwdef mutable struct OrderBook
     bid_orders::OneSidedBook = OneSidedBook(side=:BID) # bid orders
     ask_orders::OneSidedBook = OneSidedBook(side=:ASK) # ask orders
     acct_map::Dict{Int64,AVLTree{Int64,Order}} = Dict{Int64,AVLTree{Int64,Order}}() # Map from acct_id::Int64 to AVLTree{tick_id::Int64,nothing}
+    flags::Vector{Symbol} = Dict{Symbol,Bool}(:LOAutoCross => true) # container for additional order book logic flags
 end
 
 
@@ -30,7 +40,10 @@ end
 
 
 """
-Enter limit order with matching properties to the LOB
+    `submit_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, size::Int64, side::Symbol; acct_id::Union{Nothing,Int64}=nothing)`
+
+Enter limit order with matching properties to the LOB. 
+Optionally provide `acct_id`, defaults to `nothing`. If `acct_id` provided, account holdings are tracked in 
 """
 function submit_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, size::Int64, side::Symbol; 
                              acct_id::Union{Nothing,Int64}=nothing)
@@ -40,11 +53,17 @@ function submit_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, size
     ord.side == :ASK ? insert_order!(ob.ask_orders,ord) : insert_order!(ob.bid_orders,ord)
     # Update account map
     _add_order_acct_map!(ob.acct_map,acct_id,ord)
+    return nothing
 end
 
 
 """
+    `cancel_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, 
+                            side::Symbol; acct_id::Union{Nothing,Int64}=nothing)`
+
 Cancels order with matching tick_id from OrderBook.
+Optionally provide acct_id if known.
+
 """
 function cancel_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, side::Symbol; acct_id::Union{Nothing,Int64}=nothing)
     side in (:BID, :ASK) || error("invalid trade side provided") # check valid side
@@ -113,10 +132,14 @@ end
 
 
 """
+    `submit_market_order!(ob,side,size)` 
+
 Submit market to OrderBook on given side (:ASK or :BID) and size::Int64,
 Returns the assigned internal tick_id.
+
 """
-function submit_market_order!(ob::OrderBook,side,size)    side ∈ (:BID, :ASK) || error("invalid trade side provided") # check valid side
+function submit_market_order!(ob::OrderBook,side,size)    
+    side ∈ (:BID, :ASK) || error("invalid trade side provided") # check valid side
     if side == :ASK
         order_match_lst, complete_status = _submit_market_order!(ob.ask_orders,size::Int64)
     else
@@ -139,29 +162,52 @@ end
                 :orders => [ x[3] for x in raw_info_list] )
 end
 
-"Retrieve prices, volumes and order counts at bid and ask until fixed depth"
+"""
+    `book_depth_info(ob::OrderBook; max_depth=5)`
+
+    Retrieve prices, volumes and order counts at bid and ask until fixed depth
+"""
 function book_depth_info(ob::OrderBook; max_depth=5)
     return Dict( :BID => _sidebook_stats(ob.bid_orders,max_depth), 
                  :ASK => _sidebook_stats(ob.ask_orders,max_depth) )
 end
 
-"return best ask price from order book"
+"Return best ask price from order book"
 best_bid_ask(ob::OrderBook) = (ob.bid_orders.best_price, ob.ask_orders.best_price)
 
-"return total bid and ask volume from order book"
+"""
+    `volume_bid_ask(ob::OrderBook)`
+
+Return total bid and ask volume from order book.
+"""
 volume_bid_ask(ob::OrderBook) = (ob.bid_orders.best_price, ob.ask_orders.best_price)
 
-"return total number of orders in order book"
+"""
+    n_orders_bid_ask(ob::OrderBook)
+
+Return total number of orders on each side of order book
+"""
 n_orders_bid_ask(ob::OrderBook) = (ob.bid_orders.best_price, ob.ask_orders.best_price)
 
 
 """
-Write OrderBook to an IO stream where each row corresponds to an order
-string_map(::Order)::String determines how each order should be formatted as a string
+    get_acct(ob::OrderBook,acct_id::Int64)
+
+Return all open orders assigned to 
 """
-function Base.write(io::IO,ob::OrderBook;string_rep = _order_to_csv)
+get_acct(ob::OrderBook,acct_id::Int64) = ob.acct_map[acct_id]
+
+
+"""
+    `write_csv(io::IO,ob::OrderBook;row_formatter = _order_to_csv, header="TRD,ID,SIDE,SIZE,PX,ACCT")`
+
+Write OrderBook `ob` to an IO stream into csv format where each row corresponds to an order
+The formatting for each row is given by the function `string_map(::Order)::String`.
+The csv header can be provided as an argument where setting it to `nothing` writes no header.
+"""
+function write_csv(io::IO,ob::OrderBook;row_formatter = _order_to_csv, header="TRD,ID,SIDE,SIZE,PX,ACCT")
     cnt = 0
-    cnt += write(io,"TRD,ID,SIDE,SIZE,PX,ACCT",'\n')
+    !is_nothing(write_header) && ( cnt += write(io,header,'\n') )
     # write all of the bids
     for (pk,pq) in ob.bid_orders.book
         for ord in pq.queue
@@ -175,4 +221,29 @@ function Base.write(io::IO,ob::OrderBook;string_rep = _order_to_csv)
         end
     end
     return cnt
+end
+
+
+@inline function _print_book_barplot(io::IO,ob::OrderBook;max_depth=5)
+    sb_info = LimitOrderBook.book_depth_info(ob,max_depth=max_depth)
+    
+    # Get max price str length
+    all_prices = [ sb_info[:BID][:price] ; sb_info[:ASK][:price] ]
+    max_len = string.(all_prices) .|> length |> maximum
+
+    bid_plt = barplot( lpad.(string.(reverse(sb_info[:BID][:price])),max_len," ") ,reverse(sb_info[:BID][:volume]),color=:red,ylabel=":BID",border=:none,padding=0)
+    ask_plt = barplot( lpad.(string.(sb_info[:ASK][:price]),max_len," "),sb_info[:BID][:volume],ylabel=":ASK",border=:none,padding=0)
+
+    println("OrderBook object with flags $(ob.flags)\n Display depth cutoff=$max_depth.")
+    println(io,bid_plt)
+    println(io,ask_plt)
+    return
+end
+
+function Base.print(io::IO,ob::OrderBook;max_depth=5)
+    return _print_book_barplot(io,ob;max_depth=max_depth)
+end
+
+function Base.show(io::IO,ob::OrderBook,::MIME"text/plain";max_depth=5)
+    return _print_book_barplot(io,ob;max_depth=max_depth)
 end

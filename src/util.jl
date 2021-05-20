@@ -12,8 +12,8 @@ Base.getindex(tr::AVLTree{K,D},k::K) where {K,D} = Base.getkey(tr,k)
 Base.setindex!(tr::AVLTree{K,D},k::K,d::D) where {K,D} = AVLTrees.insert!(tr,k,d)
 Base.haskey(tr::AVLTree{K,D},k::K) where {K,D} = !(Base.getkey(tr,k) === nothing)
 Base.eltype(::AVLTree{K,D}) where {K,D} = D
-Base.length(tr::AVLTree{K,D}) where {K,D} = AVLTrees.size(tr)
 Base.isempty(tr::AVLTree{K,D}) where {K,D} = isnothing(tr.root)
+# Base.length(tr::AVLTree{K,D}) where {K,D} = AVLTrees.size(tr)
 
 function Base.popfirst!(tree::AVLTree)
     # traverse to left-most node
@@ -52,15 +52,4 @@ function Base.first_index(tree::AVLTree)
     end
     # return node key
     return key
-end
-
-
-# Extend AVLTrees functionality to Base default functions
-"""
-Construct an AVLTree containing a single item (k => d)
-"""
-function AVLTree(k::K,d::D) where {K,D}
-    tr = AVLTree{K,D}()
-    insert!(tr,k,d)
-    return tr
 end

@@ -1,6 +1,7 @@
 using LimitOrderBook
 using Test
+using Base.Iterators: zip,cycle,take,filter
 
 @testset "LimitOrderBook.jl" begin
-    # Write your tests here.
+    include("./test-1.jl")
 end
