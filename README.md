@@ -10,7 +10,7 @@ The most basic atomic type is the `Order` which contains information about its s
 
 ### Examples
 
-We provide a simple example below to demonstrate some of the package functionality.
+A simple example si provided below to demonstrate some of the package functionality.
 
 ````````````julia
 using LimitOrderBook
@@ -20,7 +20,7 @@ begin # Create (Deterministic) Limit Order Generator
     orderid_iter = Base.Iterators.countfrom(1)
     sign_iter = cycle([1,-1,-1,1,1,-1])
     side_iter = ( s>0 ? :ASK : :BID for s in sign_iter )
-    spread_iter = cycle([3 2 3 2 2 2 3 2 3 4 2 2 3 2 3 2 3 3 2 2 3 2 5 2 2 2 2 2 4 2 3 6 5 6 3 2 3 5 4]*1e-2)
+    spread_iter = cycle([3 2 2 3 2 3 4 2 2 3 2 3 2 3 3 2 5 6 4 2 5 2 2 2]*1e-2)
     price_iter = ( Float32(100.0 + sgn*δ) for (δ,sgn) in zip(spread_iter,sign_iter) )
     size_iter = cycle([2,5,3,4,10,15,1,6,13,11,4,1,5])
     # zip them all together
@@ -52,8 +52,8 @@ begin
     for (orderid, price, size, side) in Base.Iterators.take( lmt_order_info_iter, 500 )
         LimitOrderBook.submit_limit_order!(ob,orderid,price,size,side)
     end
-	  # MO returns matches and completion flag  
-  	mo_matches, mo_flag = LimitOrderBook.submit_market_order!(ob,:BID,100)
+    # MO returns matches and completion flag  
+    mo_matches, mo_flag = LimitOrderBook.submit_market_order!(ob,:BID,100)
 end
 
 
