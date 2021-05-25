@@ -10,7 +10,7 @@ The most basic atomic type is the `Order` which contains information about its s
 
 ### Examples
 
-A simple example si provided below to demonstrate some of the package functionality.
+A simple example is provided below to demonstrate some of the package functionality.
 
 ````````````julia
 using LimitOrderBook
