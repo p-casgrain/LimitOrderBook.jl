@@ -40,7 +40,7 @@ end
 
 
 """
-    `submit_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, size::Int64, side::Symbol; acct_id::Union{Nothing,Int64}=nothing)`
+    `submit_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, size::Int64, side::Symbol, acct_id::Union{Nothing,Int64}=nothing)`
 
 Enter limit order with matching properties to the LOB. 
 Optionally provide `acct_id`, defaults to `nothing`. If `acct_id` provided, account holdings are tracked in 
@@ -59,18 +59,18 @@ end
 
 """
     `cancel_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, 
-                            side::Symbol; acct_id::Union{Nothing,Int64}=nothing)`
+                            side::Symbol, acct_id::Union{Nothing,Int64}=nothing)`
 
 Cancels order with matching tick_id from OrderBook.
 Optionally provide acct_id if known.
 
 """
-function cancel_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, side::Symbol; acct_id::Union{Nothing,Int64}=nothing)
+function cancel_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, side::Symbol, acct_id::Union{Nothing,Int64}=nothing)
     side in (:BID, :ASK) || error("invalid trade side provided") # check valid side
     # Delete order from bid or ask book
     (side == :ASK) ? delete_order!(ob.ask_orders,price,orderid) : delete_order!(ob.bid_orders,price,orderid)
     # Delete order from account maps
-    _delete_order_acct_map!(ob.acct_map,acct_id,orderid)
+    isnothing(acct_id) || _delete_order_acct_map!(ob.acct_map,acct_id,orderid)
 end
 
 

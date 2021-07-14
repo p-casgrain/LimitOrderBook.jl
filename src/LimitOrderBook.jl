@@ -1,5 +1,4 @@
 module LimitOrderBook
-    include("util.jl")
     include("orderqueue.jl")
     include("sidebook.jl")
     include("book.jl")
