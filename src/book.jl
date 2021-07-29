@@ -16,7 +16,7 @@ Initialize empty book: `OrderBook()`
     bid_orders::OneSidedBook = OneSidedBook(side=:BID) # bid orders
     ask_orders::OneSidedBook = OneSidedBook(side=:ASK) # ask orders
     acct_map::Dict{Int64,AVLTree{Int64,Order}} = Dict{Int64,AVLTree{Int64,Order}}() # Map from acct_id::Int64 to AVLTree{tick_id::Int64,nothing}
-    flags::Vector{Symbol} = Dict{Symbol,Bool}(:LOAutoCross => true) # container for additional order book logic flags
+    flags = Dict{Symbol,Bool}(:LOAutoCross => true) # container for additional order book logic flags
 end
 
 
@@ -65,7 +65,7 @@ Cancels order with matching tick_id from OrderBook.
 Optionally provide acct_id if known.
 
 """
-function cancel_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, side::Symbol, acct_id::Union{Nothing,Int64}=nothing)
+function cancel_limit_order!(ob::OrderBook, orderid::Int64, price::Float32, side::Symbol; acct_id::Union{Nothing,Int64}=nothing)
     side in (:BID, :ASK) || error("invalid trade side provided") # check valid side
     # Delete order from bid or ask book
     (side == :ASK) ? delete_order!(ob.ask_orders,price,orderid) : delete_order!(ob.bid_orders,price,orderid)

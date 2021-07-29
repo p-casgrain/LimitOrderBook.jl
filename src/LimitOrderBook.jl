@@ -1,4 +1,5 @@
 module LimitOrderBook
+    import Base.@kwdef
     include("orderqueue.jl")
     include("sidebook.jl")
     include("book.jl")
