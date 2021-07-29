@@ -12,7 +12,7 @@ The most basic atomic type is the `Order` which contains information about its s
 ### Installation
 
 ``````julia
-Pkg.install("https://github.com/p-casgrain/LimitOrderBook.jl")
+Pkg.add("https://github.com/p-casgrain/LimitOrderBook.jl")
 ``````
 
 ### Examples
