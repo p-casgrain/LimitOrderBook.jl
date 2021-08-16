@@ -1,3 +1,4 @@
+using AVLTrees
 
 """
 OneSidedBook is a one-sided book (i.e. :BID or :ASK) of order queues at 
@@ -35,7 +36,7 @@ end
 "Delete entire queue associated with given price from OneSidedBook"
 function _delete_price_queue!(sb::OneSidedBook,price::Float32)
     pricekey = sb.side == :ASK ? price : -price
-    price_queue = popat!(sb.book,pricekey) # delete price queue
+    price_queue = pop!(sb.book,pricekey) # delete price queue
     
     # update book stats
     (price_queue.price == sb.best_price) && _update_next_best_price!(sb) # Update price only if best price was changed

@@ -9,7 +9,6 @@ struct Order
     acctid::Union{Int64,Nothing}
 end
 
-OrderRef = RefValue{Order}
 
 # Orderbook State Saving Methods
 
