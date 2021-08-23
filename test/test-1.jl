@@ -18,11 +18,11 @@ begin # Create (Deterministic) Market Order Generator
 end
 
 @testset "Submit and Cancel 1" begin # Add and delete all orders, verify book is empty, verify account tracking
-    ob = LimitOrderBook.OrderBook() #Initialize empty book
+    ob = LimitOrderBook.OrderBook{Int64,Int64}() #Initialize empty book
     order_info_lst = take(lmt_order_info_iter,50000)
     # Add a bunch of orders
     for (orderid, price, size, side) in order_info_lst
-        LimitOrderBook.submit_limit_order!(ob,orderid,price,size,side,acct_id=10101)
+        LimitOrderBook.submit_limit_order!(ob,orderid,price,size,side;acct_id=10101)
     end
     @test length(ob.acct_map[10101]) == 50000 # Check account order tracking
     # Cancel them all
@@ -36,7 +36,7 @@ end
 end
 
 @testset "MO Liquidity Wipe" begin # Wipe out book completely, try MOs on empty book
-    ob = LimitOrderBook.OrderBook() #Initialize empty book
+    ob = LimitOrderBook.OrderBook{Int64,Int64}() #Initialize empty book
     # Add a bunch of orders
     for (orderid, price, size, side) in Base.Iterators.take( lmt_order_info_iter, 50 )
         LimitOrderBook.submit_limit_order!(ob,orderid,price,size,:BID)
@@ -52,7 +52,7 @@ end
 end
 
 @testset "Order match exact - bid" begin # Test correctness in order matching system / Stat calculation (:BID)
-    ob = LimitOrderBook.OrderBook() #Initialize empty book
+    ob = LimitOrderBook.OrderBook{Int64,Int64}() #Initialize empty book
     # record order book info before
     order_lst_tmp = Base.Iterators.take( Base.Iterators.filter( x-> x[4]==:BID, lmt_order_info_iter), 7 ) |> collect
     
@@ -92,6 +92,5 @@ end
     @test mo_match_sizes == expected_mo_match_size
     @test mo_flag == expected_mo_flag
 end
-
 
 

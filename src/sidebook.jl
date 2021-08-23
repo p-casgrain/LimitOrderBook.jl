@@ -1,6 +1,10 @@
 using AVLTrees
 
 """
+    OneSidedBook{Oid,Aid} 
+    
+One-Sided book with order-id type Oid and account-id type Aid
+
 OneSidedBook is a one-sided book (i.e. :BID or :ASK) of order queues at 
 varying prices. 
 
@@ -11,9 +15,9 @@ The book keeps track of various statistics such as the current best price,
 total share and price volume, as well as total contained number of orders.
 
 """
-@kwdef mutable struct OneSidedBook
+@kwdef mutable struct OneSidedBook{Oid<:Integer,Aid<:Integer}
     side::Symbol
-    book::AVLTree{Float32,OrderQueue} = AVLTree{Float32,OrderQueue}()
+    book::AVLTree{Float32,OrderQueue{Oid,Aid}} = AVLTree{Float32,OrderQueue{Oid,Aid}}()
     total_volume::Int64 = 0 # Total volume available in shares
     num_orders::Int32 = Int32(0) # Number of orders in the book
     best_price::Union{Float32,Nothing} = nothing # best bid or ask
@@ -46,12 +50,12 @@ end
 
 
 "Insert new_order into OneSidedBook at given price, create new price queue if needed"
-function insert_order!(sb::OneSidedBook,new_order::Order)
+function insert_order!(sb::OneSidedBook{Oid,Aid},new_order::Order{Oid,Aid}) where {Oid<:Integer,Aid<:Integer}
     pricekey = (sb.side == :ASK) ? new_order.price : -new_order.price
     # search for order queue at price
     order_queue = getkey(sb.book,pricekey)
     if isnothing(order_queue) # If key not present (price doesnt exist in book)
-        new_queue = OrderQueue(price=new_order.price) # Create new price queue
+        new_queue = OrderQueue{Oid,Aid}(new_order.price) # Create new price queue
         push!(new_queue,new_order) # Add order to new price queue
         insert!(sb.book,pricekey,new_queue) # add new price queue to OneSidedBook
 
@@ -73,7 +77,7 @@ function insert_order!(sb::OneSidedBook,new_order::Order)
 end
 
 "Delete order with given price/tick_id from book"
-function delete_order!(sb::OneSidedBook,price::Float32,orderid::Int64)
+function delete_order!(sb::OneSidedBook{Oid,Aid},price::Float32,orderid::Oid) where {Oid<:Integer,Aid<:Integer}
     # Get price queue and delete order from it
     order_queue = _get_price_queue(sb,price)
     vol0 = order_queue.total_volume[] # get stats before deletion
