@@ -2,36 +2,40 @@ using Printf
 
 # Define Order, OrderQueue objects and relavant methods.
 """
-    Order{Tid} 
-    Order object with order ID type Oid and account id type Aid
+    Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
+    Order object with
+        Order ID type => Oid
+        Account ID type => AID
+        Size Type => ST
+        Price Type => PT
 """
-struct Order{Oid<:Integer,Aid<:Integer}
+struct Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
     orderid::Oid
     side::Symbol
-    size::Int64
-    price::Float32
+    size::ST
+    price::PT
     acctid::Union{Aid,Nothing}
+    function Order{Oid,Aid,ST,PT}(
+        orderid::Oid,
+        side::Symbol,
+        size::Real,
+        price::Real,
+        acctid::Union{Aid,Nothing} = nothing,
+    ) where {Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
+        new{Oid,Aid,ST,PT}(orderid, side, ST(size), PT(price), acctid) # cast price and size to correct types
+    end
 end
-function Order(
-    orderid::Oid,
-    side,
-    size,
-    price,
-    acctid::Aid,
-) where {Oid<:Integer,Aid<:Integer}
-    Order{Oid,Aid}(orderid, side, size, price, acctid)
-end
+
 
 # Orderbook State Saving Methods
-
 function _order_to_csv(o::Order)
-    @sprintf "LMT,%i,%s,%i,%f,%i" o.orderid o.side o.size o.price o.acctid
+    @sprintf "LMT,%i,%s,%f,%f,%i" o.orderid o.side o.size o.price o.acctid
 end
 
 
 "Return new order with size modified"
-copy_modify_size(o::Order{Oid,Aid}, new_size) where {Oid,Aid} =
-    Order{Oid,Aid}(o.orderid, o.side, new_size, o.price, o.acctid)
+copy_modify_size(o::Order{Oid,Aid,ST,PT}, new_size) where {Oid,Aid,ST,PT} =
+    Order{Oid,Aid,ST,PT}(o.orderid, o.side, new_size, o.price, o.acctid)
 
 """"
 OrderQueue is a queue of orders at a fixed price, implemented as a Deque/Vector.
@@ -41,21 +45,22 @@ OrderQueue also keeps track of its contained volume in shares and orders
 
 OrderQueue(price) Initializes an empty order queue at price
 """
-struct OrderQueue{Oid<:Integer,Aid<:Integer}
-    price::Float32
-    queue::Vector{Order{Oid,Aid}}
-    total_volume::Base.RefValue{Int64}
-    num_orders::Base.RefValue{Int64}
-end
-
-# Initialize empty OrderQueue
-function OrderQueue{Oid,Aid}(price::Float32) where {Oid<:Integer,Aid<:Integer}
-    OrderQueue{Oid,Aid}(
-        price,
-        Vector{Order{Oid,Aid}}(),
-        Base.RefValue{Int64}(0),
-        Base.RefValue{Int64}(0),
-    )
+struct OrderQueue{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
+    price::PT # price at which queue is located
+    queue::Vector{Order{Oid,Aid,ST,PT}} # queue of orders as vector
+    total_volume::Base.RefValue{ST} # total volume in queue
+    num_orders::Base.RefValue{Int64} # total size of queue
+    # Initialize empty OrderQueue
+    function OrderQueue{Oid,Aid,ST,PT}(
+        price::PT,
+    ) where {Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
+        new{Oid,Aid,ST,PT}(
+            price,
+            Vector{Order{Oid,Aid,ST,PT}}(),
+            Base.RefValue{ST}(0),
+            Base.RefValue{Int64}(0),
+        )
+    end
 end
 
 
@@ -73,37 +78,54 @@ function Base.pushfirst!(oq::OrderQueue, ord::Order)
     oq.num_orders[] += 1
 end
 
+isequal_orderid(
+    o::Order{Oid,Aid,ST,PT},
+    this_id::Oid,
+) where {Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real} = o.orderid == this_id
+order_id_match(order_id) = Base.Fix2(isequal_orderid, order_id)
+
 @inline function _popat_orderid!(
-    oq::OrderQueue{Oid,Aid},
+    oq::OrderQueue{Oid,Aid,ST,PT},
     pop_id::Oid,
-) where {Oid<:Integer,Aid<:Integer}
-    ret_ix = Int64(0)
-    for i = 1:length(oq.queue)
-        @inbounds if oq.queue[i].orderid == pop_id
-            ret_ix = i
-            break
-        end
+) where {Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
+    ret_ix = findfirst(order_id_match(pop_id), oq.queue)::Union{Int64,Nothing}
+    if !isnothing(ret_ix)
+        return popat!(oq.queue, ret_ix)::Order{Oid,Aid,ST,PT}
+    else
+        return nothing
     end
-    return popat!(oq.queue, ret_ix)
 end
 
-function Base.delete!(oq::OrderQueue, orderid::Integer)
+"""
+    `popat_orderid!(oq::OrderQueue, orderid::Integer)`
+
+Pop Order with orderid from oq::OrderQueue.
+
+Returns eiter
+    popped order, updates queue statistics.
+    `nothing` if orderid not found.
+
+"""
+function popat_orderid!(oq::OrderQueue, orderid)
     ord = _popat_orderid!(oq, orderid)
-    oq.total_volume[] -= ord.size
-    oq.num_orders[] -= 1
+    if !isnothing(ord) # if order is returned, track stats
+        oq.total_volume[] -= ord.size
+        oq.num_orders[] -= 1
+    end
+    return ord
 end
 
 function Base.popfirst!(oq::OrderQueue)
-    ord = popfirst!(oq.queue)
+    ord = Base.popfirst!(oq.queue)
     oq.total_volume[] -= ord.size
     oq.num_orders[] -= 1
     return ord
 end
 
-Base.isempty(oq::OrderQueue) = Base.isempty(oq.queue)
+Base.isempty(oq::OrderQueue) = isempty(oq.queue)
 
 function Base.print(io::IO, oq::OrderQueue)
-    write(io::IO, "OrderQueue @ price=$(oq.price):", "\n")
+    write(io::IO, "OrderQueue at price=$(oq.price):", "\n")
     # write(io," ","TRD,ID,SIDE,SIZE,PX,ACCT",'\n')
     for ord in oq.queue
         write(io::IO, " ")
