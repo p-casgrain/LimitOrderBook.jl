@@ -1,7 +1,8 @@
 # LimitOrderBook
 
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://github.io/p-casgrain/LimitOrderBook.jl)
-[![CI](https://github.com/p-casgrain/LimitOrderBook.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/p-casgrain/LimitOrderBook.jl/actions/workflows/CI.yml)
+[![CI](https://github.com/p-casgrain/LimitOrderBook.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/p-casgrain/LimitOrderBook.jl/actions/workflows/CI.yml)
+[![Coverage](https://codecov.io/gh/p-casgrain@github.com/LimitOrderBook.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/p-casgrain@github.com/LimitOrderBook.jl)
 [![GitHub issues](https://img.shields.io/github/issues/p-casgrain/LimitOrderBook.jl)](https://github.com/p-casgrain/LimitOrderBook.jl/issues)
 [![GitHub forks](https://img.shields.io/github/forks/p-casgrain/LimitOrderBook.jl)](https://github.com/p-casgrain/LimitOrderBook.jl/network)
 [![GitHub license](https://img.shields.io/github/license/p-casgrain/LimitOrderBook.jl)](https://github.com/p-casgrain/LimitOrderBook.jl/blob/main/LICENSE)
