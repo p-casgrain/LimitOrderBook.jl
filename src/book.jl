@@ -11,7 +11,7 @@ Collection of open orders by account.
 See documentation on [`Order`](@ref) for more information on these types.
 
 The account map has the structure of a nested `Dict`.
-The outer key is the account id, mapping to an AVLTree of `Order`s keyed by order id.
+The outer key is the account id, mapping to an `AVLTree` of `Order`s keyed by order id.
 """
 AcctMap{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real} = Dict{Aid,AVLTree{Oid,Order{Oid,Aid,ST,PT}}}
 
@@ -19,12 +19,17 @@ AcctMap{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real} = Dict{Aid,AVLTree{Oid,Orde
 """
     OrderBook{Oid,Aid,ST,PT}
 
-Object representing a Limit Order Book.
+An `OrderBook` is a data structure containing __limit orders__ represented as objects of type `Order{Oid,Aid,ST,PT}`.
 
-An `OrderBook{Oid,Aid,ST,PT}` is a data structure containing limit orders represented as objects of type `Order{Oid,Aid,ST,PT}`.
-See documentation on [`Order`](@ref) for more information on these parametric types.
+See documentation on [`Order`](@ref) for more information on the parametric type `Order{Oid,Aid,ST,PT}`.
 
-Initialize an empty limit order book with `OrderBook{Oid,Aid,ST,PT}()`
+How to use `Orderbook`:
+ - Initialize an empty limit order book as `OrderBook{Oid,Aid,ST,PT}()`
+ - __Submit__ or __cancel__ limit orders with [`submit_limit_order!`](@ref) and [`cancel_limit_order!`](@ref). 
+ - Submit __market orders__ with [`submit_market_order!`](@ref)
+ - Retrieve order book state information with `print` or `show` methods, as well as [`book_depth_info`](@ref), [`best_bid_ask`](@ref), [`volume_bid_ask`](@ref), [`n_orders_bid_ask`](@ref) and [`get_acct`](@ref)
+ - Write book state to `csv` file with [`write_csv`](@ref).
+
 """
 @kwdef mutable struct OrderBook{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
     bid_orders::OneSidedBook{Oid,Aid,ST,PT} = OneSidedBook{Oid,Aid,ST,PT}(side = :BID) # bid orders
@@ -62,7 +67,7 @@ end
 
 
 """
-    submit_limit_order!(ob::OrderBook, orderid, price, size, side[, acct_id=nothing])
+    submit_limit_order!(ob::OrderBook, orderid, price, size, side [, acct_id=nothing])
 
 Enter limit order with matching properties into `ob::OrderBook`. 
 
@@ -92,7 +97,7 @@ end
 
 
 """
-    cancel_limit_order!(ob::OrderBook, orderid, price, side[, acct_id=nothing])
+    cancel_limit_order!(ob::OrderBook, orderid, price, side [, acct_id=nothing])
 
 Cancels order with matching information from OrderBook.
 
@@ -171,8 +176,7 @@ cancel_limit_order!(ob::OrderBook, o::Order) = cancel_limit_order!(ob,o.orderid,
     # Update Sidebook statistics
     _update_next_best_price!(sb)
     # Return results
-    complete_status = left_to_trade > 0 ? :INCOMPLETE : :COMPLETE # Note whether order is complete
-    return order_match_lst, complete_status, left_to_trade
+    return order_match_lst, left_to_trade
 end
 
 
@@ -186,9 +190,8 @@ Market orders are filled by price-time priority.
 
 Returns tuple `( ord_lst::Vector{Order}, complete_status::Symbol, left_to_trade::ST )`
 where
- - `ord_lst` is a list of LOs that MO matched with
- - `complete_status` is either `:COMPLETE` or `:INCOMPLETE`, denoting whether there was enough liquidity to complete the order or not.
- - `left_to_trade` is the remaining size of un-filled order ( `==0` if `:COMPLETE`, `>0` if `:INCOMPLETE`)
+ - `ord_lst` is a list of _limit orders_ that _market order_ matched with
+ - `left_to_trade` is the remaining size of un-filled order ( `==0` if order is complete, `>0` if incomplete)
 
 """
 function submit_market_order!(ob::OrderBook{Oid,Aid,ST,PT}, side::Symbol, mo_size) where {Oid,Aid,ST,PT}

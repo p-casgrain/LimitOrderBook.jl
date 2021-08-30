@@ -14,8 +14,8 @@ An `Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}` is a struct representing
  - A price the order is set at, `price::PT` and,
  - Optionally, a unique account ID `acctid::Union{Aid,Nothing}`, which is set to nothing if the account is unknown or irrelevant.
 
-One can create a new `Order` as `Order{Oid,Aid,ST,PT}(orderid,side,size,price[,acctid=nothing])`, where the types of 
-`size` and `price` will be cast to the correct types. The `orderid` and `acctid` types will not be cast to avoid ambiguity.
+One can create a new `Order` as `Order{Oid,Aid,ST,PT}(orderid, side, size, price [,acctid=nothing])`, where the types of 
+`size` and `price` will be cast to the correct types. The `orderid` and `acctid` types will not be cast in order to avoid ambiguity.
 
 """
 struct Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
