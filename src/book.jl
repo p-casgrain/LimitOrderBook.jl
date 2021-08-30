@@ -112,7 +112,7 @@ function cancel_limit_order!(
     side in (:BID, :ASK) || error("invalid trade side argument") # check valid side
     # Delete order from bid or ask book
     popped_ord = (side == :ASK) ? pop_order!(ob.ask_orders, PT(price), Oid(orderid)) :
-    pop_order!(ob.bid_orders, price, orderid)
+    pop_order!(ob.bid_orders, PT(price), Oid(orderid))
     # Delete order from account maps
     if !isnothing(popped_ord) && !isnothing(popped_ord.acctid)
         _delete_order_acct_map!(ob.acct_map, popped_ord.acctid, popped_ord.orderid)
