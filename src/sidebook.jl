@@ -19,7 +19,7 @@ total share and price volume, as well as total contained number of orders.
 @kwdef mutable struct OneSidedBook{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
     side::Symbol
     book::AVLTree{PT,OrderQueue{Oid,Aid,ST,PT}} = AVLTree{PT,OrderQueue{Oid,Aid,ST,PT}}()
-    total_volume::Int64 = 0 # Total volume available in shares
+    total_volume::ST = 0 # Total volume available in shares
     num_orders::Int32 = Int32(0) # Number of orders in the book
     best_price::Union{PT,Nothing} = nothing # best bid or ask
 end
