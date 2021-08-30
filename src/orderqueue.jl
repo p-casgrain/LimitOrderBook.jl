@@ -9,9 +9,9 @@ Type representing a limit order.
 An `Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}` is a struct representing a Limit Order which contains
 
  - An unique order id `orderid::Oid`, 
- - A side, `side::Symbol`, where it is expected that `side=:ASK` or `side=:BID` to represent the side of the book the order will rest in.
- - An order size, `size::ST`
- - A price the order is set at, `price::PT` and,
+ - `side::Symbol`, the side of the book the order will rest in, where either `side=:ASK` or `side=:BID`.
+ - `size::ST`, the order size
+ - `price::PT`, the price the order is set at
  - Optionally, a unique account ID `acctid::Union{Aid,Nothing}`, which is set to nothing if the account is unknown or irrelevant.
 
 One can create a new `Order` as `Order{Oid,Aid,ST,PT}(orderid, side, size, price [,acctid=nothing])`, where the types of 

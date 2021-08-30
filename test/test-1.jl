@@ -43,11 +43,11 @@ end
     for (orderid, price, size, side) in Base.Iterators.take( lmt_order_info_iter, 50 )
         LimitOrderBook.submit_limit_order!(ob,orderid,price,size,:BID)
     end
-    mo_matches, mo_flag, mo_left = LimitOrderBook.submit_market_order!(ob,:BID,100000)
+    mo_matches, mo_ltt = LimitOrderBook.submit_market_order!(ob,:BID,100000)
 
     # Tests
     @test length( mo_matches ) == 50
-    @test mo_flag == :INCOMPLETE
+    @test mo_ltt > 0
     @test isempty(LimitOrderBook.submit_market_order!(ob,:BID,10000)[1] )
     @test isempty(ob.bid_orders)
     @test isempty(ob.ask_orders)
@@ -69,7 +69,7 @@ end
     
 
     # execute MO
-    mo_matches, mo_flag, mo_leftover = LimitOrderBook.submit_market_order!(ob,:BID,30)
+    mo_matches, mo_ltt = LimitOrderBook.submit_market_order!(ob,:BID,30)
     mo_match_sizes = [o.size for o in mo_matches]
     
     # record what is expected to be seen
@@ -79,7 +79,6 @@ end
 
     # record what is expected of MO result
     expected_mo_match_size = [5,15,6,1,2,1]
-    expected_mo_flag = :COMPLETE
     
     # Compute realized values
     book_info_after = LimitOrderBook.book_depth_info(ob,max_depth=1000)
@@ -92,7 +91,7 @@ end
     @test realized_bid_n_orders_after == expected_bid_n_orders_after
     @test realized_best_bid_after == expected_best_bid_after
     @test mo_match_sizes == expected_mo_match_size
-    @test mo_flag == expected_mo_flag
+    @test mo_ltt == 0
 end
 
 
@@ -121,19 +120,16 @@ end
     @test isnothing(lmt_obj_cancel)
 
     # Test that complete MO returns correctly
-    mo_match_list, mo_flag, mo_ltt = LimitOrderBook.submit_market_order!(ob,:BID,100)
+    mo_match_list, mo_ltt = LimitOrderBook.submit_market_order!(ob,:BID,100)
     @test isa(mo_match_list,Vector{LimitOrderBook.Order})
-    @test mo_flag == :COMPLETE
     @test mo_ltt == 0
 
-    mo_match_list, mo_flag, mo_ltt = LimitOrderBook.submit_market_order!(ob,:ASK,1542 + 13)
+    mo_match_list, mo_ltt = LimitOrderBook.submit_market_order!(ob,:ASK,1542 + 13)
     @test length(mo_match_list) == 250
-    @test mo_flag == :INCOMPLETE
     @test mo_ltt == 13
 
-    mo_match_list, mo_flag, mo_ltt = LimitOrderBook.submit_market_order!(ob,:ASK,13)
+    mo_match_list, mo_ltt = LimitOrderBook.submit_market_order!(ob,:ASK,13)
     @test isempty(mo_match_list)
-    @test mo_flag == :INCOMPLETE
     @test mo_ltt == 13
 
 
@@ -175,3 +171,13 @@ end
 
 end
 
+
+
+# using BenchmarkTools
+# ob = MyLOBType() #Initialize empty book
+# order_info_lst = take(lmt_order_info_iter,1_000_000) |> collect
+# # Add a bunch of orders
+
+# @benchmark for (orderid, price, size, side) in order_info_lst
+#     LimitOrderBook.submit_limit_order!(ob,orderid,price,size,side,10101)
+# end
