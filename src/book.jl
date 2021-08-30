@@ -6,28 +6,25 @@ using Base: show, print, popfirst!
     AcctMap{Oid,Aid,ST,PT}
 
 Collection of open orders by account. 
-Aid, Oid represent the type of the account and order ids, respectively.
-The account map has a nested Dict structure. 
-Outer key is account id, mapping to AVLTree of Orders keyed by order id.
+
+`{Oid,Aid,ST,PT}` characterize the type of Order present in the `AcctMap`. 
+See documentation on [`Order`](@ref) for more information on these types.
+
+The account map has the structure of a nested `Dict`.
+The outer key is the account id, mapping to an AVLTree of `Order`s keyed by order id.
 """
 AcctMap{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real} = Dict{Aid,AVLTree{Oid,Order{Oid,Aid,ST,PT}}}
 
 
 """
-    `OrderBook{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}`
+    OrderBook{Oid,Aid,ST,PT}
 
-Limit Order Book with type parameters:
-    Oid => Order ID Type
-    Aid => Account ID Type
-    ST  => Size Type
-    PT  => Price Type
+Object representing a Limit Order Book.
 
-Fields: 
-    `bid_orders::OneSideBook{Oid,Aid,ST,PT}` - book of bid orders
-    `ask_orders::OneSideBook{Oid,Aid,ST,PT}` - book of ask orders
-    `acct_map::AcctMap{Oid,Aid,ST,PT}` mapping account ids to orders
+An `OrderBook{Oid,Aid,ST,PT}` is a data structure containing limit orders represented as objects of type `Order{Oid,Aid,ST,PT}`.
+See documentation on [`Order`](@ref) for more information on these parametric types.
 
-Initialize empty book: `OrderBook{Oid,Aid,ST,PT}()`
+Initialize an empty limit order book with `OrderBook{Oid,Aid,ST,PT}()`
 """
 @kwdef mutable struct OrderBook{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
     bid_orders::OneSidedBook{Oid,Aid,ST,PT} = OneSidedBook{Oid,Aid,ST,PT}(side = :BID) # bid orders
@@ -65,10 +62,11 @@ end
 
 
 """
-    `submit_limit_order!(ob::OrderBook, orderid::Int64, price::PT, size::ST, side::Symbol, acct_id::Union{Nothing,Aid}=nothing)`
+    submit_limit_order!(ob::OrderBook, orderid, price, size, side[, acct_id=nothing])
 
-Enter limit order with matching properties to the LOB. 
-Optionally provide `acct_id`, defaults to `nothing`. If `acct_id` provided, account holdings are tracked in 
+Enter limit order with matching properties into `ob::OrderBook`. 
+
+If `acct_id` provided, account holdings are tracked in `ob.AcctMap`.
 """
 function submit_limit_order!(
     ob::OrderBook{Oid,Aid,ST,PT},
@@ -94,15 +92,11 @@ end
 
 
 """
-    `cancel_limit_order!(ob::OrderBook{Oid,Aid,ST,PT}, 
-                            orderid::Oid, 
-                            price::PT, 
-                            side::Symbol, 
-                            acct_id::Union{Nothing,Aid}=nothing)`
+    cancel_limit_order!(ob::OrderBook, orderid, price, side[, acct_id=nothing])
 
-Cancels order with matching tick_id from OrderBook.
-Optionally provide acct_id if known.
+Cancels order with matching information from OrderBook.
 
+Provide `acct_id` if known to guarantee correct account tracking.
 """
 function cancel_limit_order!(
     ob::OrderBook{Oid,Aid,ST,PT},
@@ -121,6 +115,11 @@ function cancel_limit_order!(
     return popped_ord
 end
 
+"""
+    cancel_limit_order!(ob::OrderBook, o::Order)
+
+Cancels order `o::Order` from LimitOrderBook.
+"""
 cancel_limit_order!(ob::OrderBook, o::Order) = cancel_limit_order!(ob,o.orderid,o.price,o.side)
 
 ## Market Order insertion functions
@@ -181,15 +180,15 @@ end
 """
     submit_market_order!(ob::OrderBook{Oid,Aid,ST,PT},side::Symbol,mo_size) 
 
-Submit market order to OrderBook on given side (:ASK or :BID) and size mo_size.
-Returns tuple
-    ( ord_lst::Vector{Order}, complete_status::Symbol, left_to_trade::ST )
+Submit market order to `OrderBook` on given side (`:ASK` or `:BID`) and size `mo_size`.
+
+Market orders are filled by price-time priority.
+
+Returns tuple `( ord_lst::Vector{Order}, complete_status::Symbol, left_to_trade::ST )`
 where
-    ord_lst => list of LOs that MO matched with
-    complete_status =>  :COMPLETE or :INCOMPLETE, denoting whether there was 
-        enough Liquidity to complete the order or not.
-    left_to_trade => remaining side of un-filled order 
-        ( ==0 if :COMPLETE, >0 of :INCOMPLETE)
+ - `ord_lst` is a list of LOs that MO matched with
+ - `complete_status` is either `:COMPLETE` or `:INCOMPLETE`, denoting whether there was enough liquidity to complete the order or not.
+ - `left_to_trade` is the remaining size of un-filled order ( `==0` if `:COMPLETE`, `>0` if `:INCOMPLETE`)
 
 """
 function submit_market_order!(ob::OrderBook{Oid,Aid,ST,PT}, side::Symbol, mo_size) where {Oid,Aid,ST,PT}
@@ -206,7 +205,13 @@ end
 """
     order_types(::X{Oid,Aid,ST,PT})
 
-Return parametric types of either an Order, OrderQueue, OneSidedbook or OrderBook
+Return parametric types of either an `Order`, `OrderQueue`, `OneSidedbook` or `OrderBook`.
+
+# Example
+```
+order_types(Order{Int64,Int64,Int64,Float64}) = (Int64,Int64,Int64,Float64)
+```
+
 """
 order_types(::Order{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT} = Oid,Aid,ST,PT
 order_types(::OrderQueue{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT} = Oid,Aid,ST,PT
@@ -233,9 +238,10 @@ order_types(::OrderBook{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT} = Oid,Aid,ST,PT
 end
 
 """
-    `book_depth_info(ob::OrderBook; max_depth=5)`
+    book_depth_info(ob::OrderBook; max_depth=5)
 
-    Retrieve prices, volumes and order counts at bid and ask until fixed depth
+Returns prices, volumes and order counts at bid and ask in `ob::OrderBook` 
+until fixed depth `max_depth` as a nested `Dict`.
 """
 function book_depth_info(ob::OrderBook; max_depth = 5)
     return Dict(
@@ -244,20 +250,24 @@ function book_depth_info(ob::OrderBook; max_depth = 5)
     )
 end
 
-"Return best ask price from order book"
+"""
+    best_bid_ask(ob::OrderBook)
+
+Return best bid/ask prices in order book as a `Tuple`
+"""
 best_bid_ask(ob::OrderBook) = (ob.bid_orders.best_price, ob.ask_orders.best_price)
 
 """
-    `volume_bid_ask(ob::OrderBook)`
+    volume_bid_ask(ob::OrderBook)
 
-Return total bid and ask volume from order book.
+Return total bid and ask volume from order book as a `Tuple`.
 """
 volume_bid_ask(ob::OrderBook) = (ob.bid_orders.total_volume, ob.ask_orders.total_volume)
 
 """
     n_orders_bid_ask(ob::OrderBook)
 
-Return total number of orders on each side of order book
+Return total number of orders on each side of order book, returned as a `Tuple`
 """
 n_orders_bid_ask(ob::OrderBook) = (ob.bid_orders.num_orders, ob.ask_orders.num_orders)
 
@@ -271,11 +281,16 @@ get_acct(ob::OrderBook{Oid,Aid,ST,PT}, acct_id::Aid) where {Oid,Aid,ST,PT} = get
 
 
 """
-    `write_csv(io::IO,ob::OrderBook;row_formatter = _order_to_csv, header="TRD,ID,SIDE,SIZE,PX,ACCT")`
+    write_csv(
+        io::IO,
+        ob::OrderBook;
+        row_formatter = _order_to_csv,
+        header = "TRD,ID,SIDE,SIZE,PX,ACCT",
+        )
 
-Write OrderBook `ob` to an IO stream into csv format where each row corresponds to an order
-The formatting for each row is given by the function `string_map(::Order)::String`.
-The csv header can be provided as an argument where setting it to `nothing` writes no header.
+Write OrderBook `ob` to an IO stream into `csv` format where each row corresponds to an order
+The formatting for each row is given by the function argument `row_formatter(::Order)::String`.
+The `csv` header can be provided as an argument where setting it to `nothing` writes no header.
 """
 function write_csv(
     io::IO,
