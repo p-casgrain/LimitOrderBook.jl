@@ -24,12 +24,12 @@ end
     order_info_lst = take(lmt_order_info_iter,50000)
     # Add a bunch of orders
     for (orderid, price, size, side) in order_info_lst
-        LimitOrderBook.submit_limit_order!(ob,orderid,price,size,side;acct_id=10101)
+        LimitOrderBook.submit_limit_order!(ob,orderid,price,size,side,10101)
     end
     @test length(ob.acct_map[10101]) == 50000 # Check account order tracking
     # Cancel them all
     for (orderid, price, size, side) in order_info_lst
-        LimitOrderBook.cancel_limit_order!(ob,orderid,price,side,acct_id=10101)
+        LimitOrderBook.cancel_limit_order!(ob,orderid,price,side)
     end
     # Check emptiness
     @test isempty(ob.bid_orders)

@@ -3,11 +3,20 @@ using Printf
 # Define Order, OrderQueue objects and relavant methods.
 """
     Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
-    Order object with
-        Order ID type => Oid
-        Account ID type => AID
-        Size Type => ST
-        Price Type => PT
+
+Type representing a limit order.
+
+An `Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}` is a struct representing a Limit Order which contains
+
+ - An unique order id `orderid::Oid`, 
+ - A side, `side::Symbol`, where it is expected that `side=:ASK` or `side=:BID` to represent the side of the book the order will rest in.
+ - An order size, `size::ST`
+ - A price the order is set at, `price::PT` and,
+ - Optionally, a unique account ID `acctid::Union{Aid,Nothing}`, which is set to nothing if the account is unknown or irrelevant.
+
+One can create a new `Order` as `Order{Oid,Aid,ST,PT}(orderid,side,size,price[,acctid=nothing])`, where the types of 
+`size` and `price` will be cast to the correct types. The `orderid` and `acctid` types will not be cast to avoid ambiguity.
+
 """
 struct Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
     orderid::Oid
@@ -26,7 +35,6 @@ struct Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
     end
 end
 
-
 # Orderbook State Saving Methods
 function _order_to_csv(o::Order)
     @sprintf "LMT,%i,%s,%f,%f,%i" o.orderid o.side o.size o.price o.acctid
@@ -36,6 +44,7 @@ end
 "Return new order with size modified"
 copy_modify_size(o::Order{Oid,Aid,ST,PT}, new_size) where {Oid,Aid,ST,PT} =
     Order{Oid,Aid,ST,PT}(o.orderid, o.side, new_size, o.price, o.acctid)
+
 
 """"
 OrderQueue is a queue of orders at a fixed price, implemented as a Deque/Vector.
@@ -97,7 +106,7 @@ order_id_match(order_id) = Base.Fix2(isequal_orderid, order_id)
 end
 
 """
-    `popat_orderid!(oq::OrderQueue, orderid::Integer)`
+    popat_orderid!(oq::OrderQueue, orderid::Integer)
 
 Pop Order with orderid from oq::OrderQueue.
 
