@@ -1,5 +1,19 @@
 using Printf
 
+
+struct OrderFillMode
+    is_allornone::Bool
+    is_immediateorcancel::Bool
+end
+
+using Base: print, show
+struct OrderSide is_buy::Bool end
+Base.print(io::IO, x::OrderSide) = print(io, x.is_buy ? "Order(Buy)" : "Order(Sell)")
+Base.show(io::IO, ::MIME"text/plain", x::OrderSide) = println(io, x.is_buy ? "Order(Buy)" : "Order(Sell)")
+Base.show(io::IO, x::OrderSide) = println(io, x.is_buy ? "Order(Buy)" : "Order(Sell)")
+
+
+
 # Define Order, OrderQueue objects and relavant methods.
 """
     Order{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}

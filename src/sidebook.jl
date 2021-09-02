@@ -29,7 +29,7 @@ Base.isempty(sb::OneSidedBook) = isempty(sb.book)
 
 "Updates the latest best price in a Sidebook (either :BID or :ASK book)."
 function _update_next_best_price!(sb::OneSidedBook)
-    sb.best_price = isempty(sb.book) ? nothing : first(sb.book)[1]
+    sb.best_price = isempty(sb.book) ? nothing : abs(first(sb.book)[1])
     return
 end
 
@@ -54,6 +54,7 @@ function _delete_price_queue!(
     (price_queue.price == sb.best_price) && _update_next_best_price!(sb) # Update price only if best price was changed
     sb.num_orders -= price_queue.num_orders[]
     sb.total_volume -= price_queue.total_volume[]
+    return price_queue
 end
 
 
@@ -95,20 +96,24 @@ function pop_order!(
 ) where {Oid,Aid,ST<:Real,PT<:Real}
     # Get price queue and delete order from it
     order_queue = _get_price_queue(sb, price)
-    Δvolm = order_queue.total_volume[] # get stats before deletion
-    ord = popat_orderid!(order_queue, orderid)
-    Δvolm -= order_queue.total_volume[] # get stats after deletion
+    if !isnothing(order_queue)
+        Δvolm = order_queue.total_volume[] # get stats before deletion
+        ord = popat_orderid!(order_queue, orderid)
+        Δvolm -= order_queue.total_volume[] # get stats after deletion
 
-    # If order deletion depleted price queue, delete the whole queue
-    if isempty(order_queue)
-        _delete_price_queue!(sb, price) # note: this function will update price
+        # If order deletion depleted price queue, delete the whole queue
+        if isempty(order_queue)
+            _delete_price_queue!(sb, price) # note: this function will update price
+        end
+
+        # Update Onesidedbook info
+        # TODO, Record change in order queue stats
+        sb.num_orders -= 1
+        sb.total_volume -= Δvolm
+
+        return ord # return popped order, is nothing if no order found
+    else
+        return nothing
     end
-
-    # Update Onesidedbook info
-    # TODO, Record change in order queue stats
-    sb.num_orders -= 1
-    sb.total_volume -= Δvolm
-
-    return ord # return popped order, is nothing if no order found
 end
 
