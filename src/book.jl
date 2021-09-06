@@ -3,40 +3,40 @@ using Base: show, print, popfirst!
 
 
 """
-    AcctMap{Oid,Aid,ST,PT}
+    AcctMap{Sz,Px,Oid,Aid}
 
 Collection of open orders by account. 
 
-`{Oid,Aid,ST,PT}` characterize the type of Order present in the `AcctMap`. 
+`{Sz,Px,Oid,Aid}` characterize the type of Order present in the `AcctMap`. 
 See documentation on [`Order`](@ref) for more information on these types.
 
 The account map has the structure of a nested `Dict`.
 The outer key is the account id, mapping to an `AVLTree` of `Order`s keyed by order id.
 """
-AcctMap{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real} =
-    Dict{Aid,AVLTree{Oid,Order{Oid,Aid,ST,PT}}}
+AcctMap{Oid<:Integer,Aid<:Integer,Sz<:Real,Px<:Real} =
+    Dict{Aid,AVLTree{Oid,Order{Sz,Px,Oid,Aid}}}
 
 
 """
-    OrderBook{Oid,Aid,ST,PT}
+    OrderBook{Sz,Px,Oid,Aid}
 
-An `OrderBook` is a data structure containing __limit orders__ represented as objects of type `Order{Oid,Aid,ST,PT}`.
+An `OrderBook` is a data structure containing __limit orders__ represented as objects of type `Order{Sz,Px,Oid,Aid}`.
 
-See documentation on [`Order`](@ref) for more information on the parametric type `Order{Oid,Aid,ST,PT}`.
+See documentation on [`Order`](@ref) for more information on the parametric type `Order{Sz,Px,Oid,Aid}`.
 
 How to use `Orderbook`:
- - Initialize an empty limit order book as `OrderBook{Oid,Aid,ST,PT}()`
- - __Submit__ or __cancel__ limit orders with [`submit_limit_order!`](@ref) and [`cancel_limit_order!`](@ref). 
+ - Initialize an empty limit order book as `OrderBook{Sz,Px,Oid,Aid}()`
+ - __Submit__ or __cancel__ limit orders with [`submit_limit_order!`](@ref) and [`cancel_order!`](@ref). 
  - Submit __market orders__ with [`submit_market_order!`](@ref)
  - Retrieve order book state information with `print` or `show` methods, as well as [`book_depth_info`](@ref), [`best_bid_ask`](@ref), [`volume_bid_ask`](@ref), [`n_orders_bid_ask`](@ref) and [`get_acct`](@ref)
  - Write book state to `csv` file with [`write_csv`](@ref).
 
 """
-@kwdef mutable struct OrderBook{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
-    bid_orders::OneSidedBook{Oid,Aid,ST,PT} = OneSidedBook{Oid,Aid,ST,PT}(side = :BID) # bid orders
-    ask_orders::OneSidedBook{Oid,Aid,ST,PT} = OneSidedBook{Oid,Aid,ST,PT}(side = :ASK) # ask orders
-    acct_map::AcctMap{Oid,Aid,ST,PT} = AcctMap{Oid,Aid,ST,PT}() # Map from acct_id::Aid to AVLTree{order_id::Oid,Order{Oid,Aid,ST,PT}}
-    flags = Dict{Symbol,Any}(:LimitAutoCross => true,:PlotTickMax => 5) # container for additional order book logic flags (not yet implemented)
+@kwdef mutable struct OrderBook{Oid<:Integer,Aid<:Integer,Sz<:Real,Px<:Real}
+    bid_orders::OneSidedBook{Sz,Px,Oid,Aid} = OneSidedBook{Sz,Px,Oid,Aid}(side = :BID) # bid orders
+    ask_orders::OneSidedBook{Sz,Px,Oid,Aid} = OneSidedBook{Sz,Px,Oid,Aid}(side = :ASK) # ask orders
+    acct_map::AcctMap{Sz,Px,Oid,Aid} = AcctMap{Sz,Px,Oid,Aid}() # Map from acct_id::Aid to AVLTree{order_id::Oid,Order{Sz,Px,Oid,Aid}}
+    flags = Dict{Symbol,Any}(:PlotTickMax => 5) # container for additional order book logic flags (not yet implemented)
 end
 
 
@@ -44,23 +44,23 @@ end
 ## Limit Order Submission and Cancellation functions
 
 @inline function _add_order_acct_map!(
-    acct_map::AcctMap{Oid,Aid,ST,PT},
+    acct_map::AcctMap{Sz,Px,Oid,Aid},
     acct::Union{Aid,Nothing},
-    order::Order{Oid,Aid,ST,PT},
-) where {Oid,Aid,ST,PT}
+    order::Order{Sz,Px,Oid,Aid},
+) where {Sz,Px,Oid,Aid}
     if !isnothing(acct)
         if !haskey(acct_map, acct)
-            acct_map[acct] = AVLTree{Oid,Order{Oid,Aid,ST,PT}}() # If account isn't registered, register
+            acct_map[acct] = AVLTree{Oid,Order{Sz,Px,Oid,Aid}}() # If account isn't registered, register
         end
         insert!(acct_map[acct], order.orderid, order) # Add order to account map
     end
 end
 
 @inline function _delete_order_acct_map!(
-    acct_map,
+    acct_map::AcctMap{Sz,Px,Oid,Aid},
     acct::Union{Aid,Nothing},
     orderid::Oid,
-) where {Oid,Aid,ST,PT}
+) where {Sz,Px,Oid,Aid}
     if !isnothing(acct)
         !haskey(acct_map, acct) ? nothing : delete!(acct_map[acct], orderid)
     end
@@ -69,18 +69,36 @@ end
 
 
 """
-    _limit_order_cross!(ob::OrderBook{Oid,Aid,ST,PT},limit_price::PT,limit_size::ST)
+    submit_order!(ob::OrderBook{Sz,Px,Oid,Aid},o::Order{Sz,Px,Oid,Aid})
+
+    #TODO: finish docstring
+"""
+function submit_order!(ob::OrderBook{Sz,Px,Oid,Aid}, o::Order{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid}
+    if (o.size<zero(Sz)) # if incorrect order size or price
+        #TODO: Do something here
+    elseif !(o.order_mode.is_limit) # if is market order
+        # TODO: pipe to market order fill function
+    else # if is a limit order
+        # TODO: pipe to limit order fill function
+    end
+    # TODO: think of proper returns
+    return status, match_list, left_to_trade 
+end
+
+
+"""
+    _limit_order_cross!(ob::OrderBook{Sz,Px,Oid,Aid},limit_price::Px,limit_size::Sz)
 
 Cross limit order with opposite side of book. Return matches and outstanding size.
 
 """
 function _limit_order_cross!(
-    sb::OneSidedBook{Oid,Aid,ST,PT},
-    limit_price::PT,
-    limit_size::ST,
-) where {Oid,Aid,ST,PT}
+    sb::OneSidedBook{Sz,Px,Oid,Aid},
+    limit_price::Px,
+    limit_size::Sz,
+) where {Sz,Px,Oid,Aid}
     limit_size > 0 || error("cross size must be positive")
-    order_match_lst = Vector{Order}()
+    order_match_lst = Vector{Order{Sz,Px,Oid,Aid}}()
     price_cmp = (sb.side == :BID) ? >=(limit_price) : <=(limit_price)
     left_to_trade = limit_size # remaining quantity to trade
     while !isempty(sb.book) &&
@@ -138,43 +156,43 @@ Enter limit order with matching properties into `ob::OrderBook`. Returns Order i
 If `acct_id` provided, account holdings are tracked in `ob.AcctMap`.
 """
 function submit_limit_order!(
-    ob::OrderBook{Oid,Aid,ST,PT},
+    ob::OrderBook{Sz,Px,Oid,Aid},
     orderid::Oid,
     limit_price::Real,
     limit_size::Real,
     side::Symbol,
     acct_id::Union{Nothing,Aid} = nothing,
-) where {Oid,Aid,ST,PT}
+) where {Sz,Px,Oid,Aid}
     side in (:BID, :ASK) || error("invalid trade side argument") # check valid side
     # check that price in right range
     best_bid, best_ask = best_bid_ask(ob)
     if (side == :BID) && !isnothing(best_ask) && (limit_price >= best_ask) # order is bid and crosses
         if !ob.flags[:LimitAutoCross]
             @warn(":BID LO should have price < best ask price. Order not processed")
-            return nothing, Vector{Order{Oid,Aid,ST,PT}}()
+            return nothing, Vector{Order{Sz,Px,Oid,Aid}}()
         else
             match_lst, remaining_size =
-                _limit_order_cross!(ob.ask_orders, PT(limit_price), ST(limit_size))
+                _limit_order_cross!(ob.ask_orders, Px(limit_price), Sz(limit_size))
             # remaining_size>0 && error("myfakeerror")
         end
     elseif (side == :ASK) && !isnothing(best_bid) && (limit_price <= best_bid) # order is ask and crosses 
         if !ob.flags[:LimitAutoCross]
             @warn(":ASK LO should have price > best bid price. Order not processed")
-            return nothing, Vector{Order{Oid,Aid,ST,PT}}()
+            return nothing, Vector{Order{Sz,Px,Oid,Aid}}()
         else
             match_lst, remaining_size =
-                _limit_order_cross!(ob.bid_orders, PT(limit_price), ST(limit_size))
+                _limit_order_cross!(ob.bid_orders, Px(limit_price), Sz(limit_size))
             # remaining_size>0 && error("myfakeerror")
         end
     else # order does not cross
-        match_lst = Vector{Order{Oid,Aid,ST,PT}}()
-        remaining_size = ST(limit_size)
+        match_lst = Vector{Order{Sz,Px,Oid,Aid}}()
+        remaining_size = Sz(limit_size)
     end
 
     if remaining_size > 0 # if there are remaining shares, add remaining to the LOB
         # create order object
         new_lmt_order =
-            Order{Oid,Aid,ST,PT}(orderid, side, limit_size, limit_price, acct_id)
+            Order{Sz,Px,Oid,Aid}(orderid, side, limit_size, limit_price, acct_id)
         # Add actual order to the correct OneSideBook
         new_lmt_order.side == :ASK ? insert_order!(ob.ask_orders, new_lmt_order) :
         insert_order!(ob.bid_orders, new_lmt_order)
@@ -183,30 +201,34 @@ function submit_limit_order!(
         # return new
         return new_lmt_order, match_lst
     else
-        return nothing, Vector{Order{Oid,Aid,ST,PT}}()
+        return nothing, Vector{Order{Sz,Px,Oid,Aid}}()
     end
 end
 
 
 
-"""
-    cancel_limit_order!(ob::OrderBook, orderid, price, side [, acct_id=nothing])
 
-Cancels order with matching information from OrderBook.
+
+
+"""
+    cancel_order!(ob::OrderBook, o::Order)
+    cancel_order!(ob::OrderBook, orderid, price, side [, acct_id=nothing])
+
+Cancels Order `o`, or order with matching information from OrderBook.
 
 Provide `acct_id` if known to guarantee correct account tracking.
 """
-function cancel_limit_order!(
-    ob::OrderBook{Oid,Aid,ST,PT},
+function cancel_order!(
+    ob::OrderBook{Sz,Px,Oid,Aid},
     orderid,
     price,
     side::Symbol,
-) where {Oid,Aid,ST,PT}
+) where {Sz,Px,Oid,Aid}
     side in (:BID, :ASK) || error("invalid trade side argument") # check valid side
     # Delete order from bid or ask book
     popped_ord =
-        (side == :ASK) ? pop_order!(ob.ask_orders, PT(price), Oid(orderid)) :
-        pop_order!(ob.bid_orders, PT(price), Oid(orderid))
+        (side == :ASK) ? pop_order!(ob.ask_orders, Px(price), Oid(orderid)) :
+        pop_order!(ob.bid_orders, Px(price), Oid(orderid))
     # Delete order from account maps
     if !isnothing(popped_ord) && !isnothing(popped_ord.acctid)
         _delete_order_acct_map!(ob.acct_map, popped_ord.acctid, popped_ord.orderid)
@@ -214,13 +236,11 @@ function cancel_limit_order!(
     return popped_ord
 end
 
-"""
-    cancel_limit_order!(ob::OrderBook, o::Order)
+cancel_order!(ob::OrderBook, o::Order) =
+    cancel_order!(ob, o.orderid, o.price, o.side)
 
-Cancels order `o::Order` from LimitOrderBook.
-"""
-cancel_limit_order!(ob::OrderBook, o::Order) =
-    cancel_limit_order!(ob, o.orderid, o.price, o.side)
+
+
 
 ## Market Order insertion functions
 
@@ -228,9 +248,9 @@ cancel_limit_order!(ob::OrderBook, o::Order) =
     Fill market order by walking the book using Price/Arrival priority
 """
 function _submit_market_order_bysize!(
-    sb::OneSidedBook{Oid,Aid,ST,PT},
-    mo_size::ST,
-) where {Oid,Aid,ST,PT}
+    sb::OneSidedBook{Sz,Px,Oid,Aid},
+    mo_size::Sz,
+) where {Sz,Px,Oid,Aid}
     mo_size > 0 || error("market order size must be positive")
     order_match_lst = Vector{Order}()
     left_to_trade = mo_size # remaining quantity to trade
@@ -283,9 +303,9 @@ Fill market order by walking the book using Price/Arrival priority.
 __This version walks the book with funds rather than trade size.__
 """
 function _submit_market_order_byfunds!(
-    sb::OneSidedBook{Oid,Aid,ST,PT},
+    sb::OneSidedBook{Sz,Px,Oid,Aid},
     funds::Real,
-) where {Oid,Aid,ST,PT}
+) where {Sz,Px,Oid,Aid}
     funds > 0 || error("market order size must be positive")
     order_match_lst = Vector{Order}()
     funds_to_trade = funds # remaining quantity to trade
@@ -345,22 +365,22 @@ Submit market order to `ob::OrderBook` on given side (`:ASK` or `:BID`) and size
 
 Market orders are filled by price-time priority.
 
-Returns tuple `( ord_lst::Vector{Order}, left_to_trade::ST )`
+Returns tuple `( ord_lst::Vector{Order}, left_to_trade::Sz )`
 where
  - `ord_lst` is a list of _limit orders_ that _market order_ matched with
  - `left_to_trade` is the remaining size of un-filled order ( `==0` if order is complete, `>0` if incomplete)
 
 """
 function submit_market_order!(
-    ob::OrderBook{Oid,Aid,ST,PT},
+    ob::OrderBook{Sz,Px,Oid,Aid},
     side::Symbol,
     mo_size::Real,
-) where {Oid,Aid,ST,PT}
+) where {Sz,Px,Oid,Aid}
     side ∈ (:BID, :ASK) || error("invalid trade side provided") # check valid side
     if side == :ASK
-        return _submit_market_order_bysize!(ob.ask_orders, ST(mo_size))
+        return _submit_market_order_bysize!(ob.ask_orders, Sz(mo_size))
     else
-        return _submit_market_order_bysize!(ob.bid_orders, ST(mo_size))
+        return _submit_market_order_bysize!(ob.bid_orders, Sz(mo_size))
     end
 end
 
@@ -398,10 +418,10 @@ Remove all orders beyond `n_keep ≥ 0` from the best bid and best ask.
 When `n_keep==0`, all orders are cleared.
 
 """
-function clear_book!(ob::OrderBook{Oid,Aid,ST,PT},n_keep::Int64=10) where {Oid,Aid,ST,PT}
+function clear_book!(ob::OrderBook{Sz,Px,Oid,Aid},n_keep::Int64=10) where {Sz,Px,Oid,Aid}
     (n_keep<0) && error("$n_keep should be non-negative")
     # clear the bids
-    cleared_bids = Vector{Order{Oid,Aid,ST,PT}}()
+    cleared_bids = Vector{Order{Sz,Px,Oid,Aid}}()
     bids_to_clear = [ abs(k) for (k,v) in ob.bid_orders.book ]
     bids_to_clear = bids_to_clear |> x -> last(x, max(length(x) - n_keep,0)) # clear all but last n
     for px in bids_to_clear
@@ -409,7 +429,7 @@ function clear_book!(ob::OrderBook{Oid,Aid,ST,PT},n_keep::Int64=10) where {Oid,A
         append!(cleared_bids,cleared_queue.queue)
     end
     # clear the asks
-    cleared_asks = Vector{Order{Oid,Aid,ST,PT}}()
+    cleared_asks = Vector{Order{Sz,Px,Oid,Aid}}()
     asks_to_clear = [ abs(k) for (k,v) in ob.ask_orders.book ]
     asks_to_clear = asks_to_clear |> x -> first(x, max(length(x) - n_keep,0)) # clear all but last n
     for px in asks_to_clear
@@ -418,25 +438,6 @@ function clear_book!(ob::OrderBook{Oid,Aid,ST,PT},n_keep::Int64=10) where {Oid,A
     end    
     return cleared_bids, cleared_asks
 end
-
-## Utility functions
-
-
-"""
-    order_types(::X{Oid,Aid,ST,PT})
-
-Return parametric types of either an `Order`, `OrderQueue`, `OneSidedbook` or `OrderBook`.
-
-# Example
-```
-order_types(Order{Int64,Int64,Int64,Float64}) = (Int64,Int64,Int64,Float64)
-```
-
-"""
-order_types(::Order{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT} = Oid, Aid, ST, PT
-order_types(::OrderQueue{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT} = Oid, Aid, ST, PT
-order_types(::OneSidedBook{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT} = Oid, Aid, ST, PT
-order_types(::OrderBook{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT} = Oid, Aid, ST, PT
 
 
 
@@ -493,11 +494,11 @@ n_orders_bid_ask(ob::OrderBook) = (ob.bid_orders.num_orders, ob.ask_orders.num_o
 
 
 """
-    get_acct(ob::OrderBook{Oid,Aid,ST,PT},acct_id::Aid)
+    get_acct(ob::OrderBook{Sz,Px,Oid,Aid},acct_id::Aid)
 
 Return all open orders assigned to account `acct_id`
 """
-get_acct(ob::OrderBook{Oid,Aid,ST,PT}, acct_id::Aid) where {Oid,Aid,ST,PT} =
+get_acct(ob::OrderBook{Sz,Px,Oid,Aid}, acct_id::Aid) where {Sz,Px,Oid,Aid} =
     get(ob.acct_map, acct_id, nothing)
 
 
@@ -539,8 +540,8 @@ end
 
 @inline function _print_book_barplot(
     io::IO,
-    ob::OrderBook{Oid,Aid,ST,PT}
-) where {Oid,Aid,ST,PT}
+    ob::OrderBook{Sz,Px,Oid,Aid}
+) where {Sz,Px,Oid,Aid}
     # Get book info
     max_depth = ob.flags[:PlotTickMax]
     sb_info = LimitOrderBook.book_depth_info(ob, max_depth = max_depth)
@@ -586,10 +587,10 @@ end
     return
 end
 
-function _print_book_info(io::IO, ob::OrderBook{Oid,Aid,ST,PT}) where {Oid,Aid,ST,PT}
+function _print_book_info(io::IO, ob::OrderBook{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid}
     return print(
         io,
-        "OrderBook{Oid=$Oid,Aid=$Aid,ST=$ST,PT=$PT} with properties:\n",
+        "OrderBook{Oid=$Oid,Aid=$Aid,Sz=$Sz,Px=$Px} with properties:\n",
         "  ⋄ best bid/ask price: $(best_bid_ask(ob))\n",
         "  ⋄ total bid/ask volume: $(volume_bid_ask(ob))\n",
         "  ⋄ total bid/ask orders: $(n_orders_bid_ask(ob))\n",

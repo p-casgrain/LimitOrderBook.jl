@@ -1,10 +1,10 @@
 using AVLTrees
 
 """
-    OneSidedBook{Oid,Aid,ST,PT} 
+    OneSidedBook{Sz,Px,Oid,Aid} 
     
 One-Sided book with order-id type Oid, account-id type Aid, 
-size type ST and price type PT.
+size type Sz and price type Px.
 
 OneSidedBook is a one-sided book (i.e. :BID or :ASK) of order queues at 
 varying prices. 
@@ -16,12 +16,12 @@ The book keeps track of various statistics such as the current best price,
 total share and price volume, as well as total contained number of orders.
 
 """
-@kwdef mutable struct OneSidedBook{Oid<:Integer,Aid<:Integer,ST<:Real,PT<:Real}
+@kwdef mutable struct OneSidedBook{Oid<:Integer,Aid<:Integer,Sz<:Real,Px<:Real}
     side::Symbol
-    book::AVLTree{PT,OrderQueue{Oid,Aid,ST,PT}} = AVLTree{PT,OrderQueue{Oid,Aid,ST,PT}}()
-    total_volume::ST = 0 # Total volume available in shares
+    book::AVLTree{Px,OrderQueue{Sz,Px,Oid,Aid}} = AVLTree{Px,OrderQueue{Sz,Px,Oid,Aid}}()
+    total_volume::Sz = 0 # Total volume available in shares
     num_orders::Int32 = Int32(0) # Number of orders in the book
-    best_price::Union{PT,Nothing} = nothing # best bid or ask
+    best_price::Union{Px,Nothing} = nothing # best bid or ask
 end
 
 
@@ -35,18 +35,18 @@ end
 
 "Retrieve order queue from OneSidedBook at given price"
 function _get_price_queue(
-    sb::OneSidedBook{Oid,Aid,ST,PT},
-    price::PT,
-) where {Oid,Aid,ST,PT<:Real}
+    sb::OneSidedBook{<:Real,Px,<:Integer,<:Integer},
+    price::Px,
+) where {Px}
     pricekey = sb.side == :ASK ? price : -price
     AVLTrees.findkey(sb.book, pricekey) # Return the price queue
 end
 
 "Delete entire queue associated with given price from OneSidedBook"
 function _delete_price_queue!(
-    sb::OneSidedBook{Oid,Aid,ST,PT},
-    price::PT,
-) where {Oid,Aid,ST,PT<:Real}
+    sb::OneSidedBook{<:Real,Px,<:Integer,<:Integer},
+    price::Px,
+) where {Px}
     pricekey = sb.side == :ASK ? price : -price
     price_queue = pop!(sb.book, pricekey) # delete price queue
 
@@ -60,14 +60,14 @@ end
 
 "Insert new_order into OneSidedBook at given price, create new price queue if needed"
 function insert_order!(
-    sb::OneSidedBook{Oid,Aid,ST,PT},
-    new_order::Order{Oid,Aid,ST,PT},
-) where {Oid,Aid,ST,PT<:Real}
+    sb::OneSidedBook{Sz,Px,Oid,Aid},
+    new_order::Order{Sz,Px,Oid,Aid},
+) where {Sz,Px,Oid,Aid<:Real}
     pricekey = (sb.side == :ASK) ? new_order.price : -new_order.price
     # search for order queue at price
     order_queue = AVLTrees.findkey(sb.book, pricekey)
     if isnothing(order_queue) # If key not present (price doesnt exist in book)
-        new_queue = OrderQueue{Oid,Aid,ST,PT}(new_order.price) # Create new price queue
+        new_queue = OrderQueue{Sz,Px,Oid,Aid}(new_order.price) # Create new price queue
         push!(new_queue, new_order) # Add order to new price queue
         insert!(sb.book, pricekey, new_queue) # add new price queue to OneSidedBook
 
@@ -90,10 +90,10 @@ end
 
 "Delete order with given price/tick_id from book"
 function pop_order!(
-    sb::OneSidedBook{Oid,Aid,ST,PT},
-    price::PT,
+    sb::OneSidedBook{Sz,Px,Oid,Aid},
+    price::Px,
     orderid::Oid,
-) where {Oid,Aid,ST<:Real,PT<:Real}
+) where {Oid,Aid,Sz<:Real,Px<:Real}
     # Get price queue and delete order from it
     order_queue = _get_price_queue(sb, price)
     if !isnothing(order_queue)
