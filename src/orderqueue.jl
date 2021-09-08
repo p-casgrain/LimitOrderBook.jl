@@ -1,42 +1,59 @@
-using Printf
+
 
 # Define Order Fill mode and utilities
-struct OrderFillMode
-    is_limit::Bool
-    is_allornone::Bool
-    is_immediateorcancel::Bool
-    OrderFillMode(is_limit = true, is_allornone = false, is_immediateorcancel = false) =
-        new(is_limit, is_allornone, is_immediateorcancel)
+"""
+    OrderTraits(allornone::Bool,immediateorcancel::Bool,allow_cross::Bool)
+
+`OrderTraits` specifies order traits which modify its execution logic.
+
+An instance can be initialized by using the keyword intializer or by using the exported constants
+`VANILLA_ORDER`, `ALLORNONE_ORDER`, `IOC_ORDER`, `FILLORKILL_ORDER`.
+
+"""
+Base.@kwdef struct OrderTraits
+    allornone::Bool = false
+    immediateorcancel::Bool = false
+    allow_cross::Bool = true
 end
 
-islimitorder(om::OrderFillMode) = om.is_limit
-isallornone(om::OrderFillMode) = om.is_allornone
-isioc(om::OrderFillMode) = om.is_immediateorcancel
+isallornone(mode::OrderTraits) = mode.allornone
+isimmediateorcancel(mode::OrderTraits) = mode.immediateorcancel
+isfillorkill(mode::OrderTraits) = isallornone(mode)&&isimmediateorcancel(mode)
+allows_book_insert(mode::OrderTraits) = !isimmediateorcancel(mode)
+allows_partial_fill(mode::OrderTraits) = !isallornone(mode)
+allows_cross(mode::OrderTraits) = mode.allow_cross
 
-const VANILLA_MARKET_ORDER = OrderFillMode(false, false, false)
-const VANILLA_LIMIT_ORDER = OrderFillMode(true, false, false)
-const ALLORNONE_MARKET_ORDER = OrderFillMode(false, true, false)
-const ALLORNONE_LIMIT_ORDER = OrderFillMode(true, true, false)
-const IOC_MARKET_ORDER = OrderFillMode(false, false, true)
-const IOC_LIMIT_ORDER = OrderFillMode(true, false, true)
-const FILLORKILL_MARKET_ORDER = OrderFillMode(false, true, true)
-const FILLORKILL_LIMIT_ORDER = OrderFillMode(true, true, true)
+const VANILLA_ORDER = OrderTraits(false,false,true)
+const ALLORNONE_ORDER = OrderTraits(true,false,true)
+const IOC_ORDER = OrderTraits(false,true,true)
+const FILLORKILL_ORDER = OrderTraits(true,true,true)
 
-Base.string(x::OrderFillMode) =
-    @printf "OrderFillMode(is_limit=%s,is_allornone=%s,is_immediateorcancel=%s)" x.is_limit x.is_allornone x.is_immediateorcancel
-Base.print(io::IO, x::OrderFillMode) = print(io, string(x))
-Base.show(io::IO, ::MIME"text/plain", x::OrderFillMode) = println(io, string(x))
+Base.string(x::OrderTraits) =
+    @sprintf("OrderTraits(allornone=%s,immediateorcancel=%s,allow_cross=%s)",x.allornone,x.immediateorcancel,x.allow_cross)
+Base.print(io::IO, x::OrderTraits) = print(io, string(x))
+Base.show(io::IO, ::MIME"text/plain", x::OrderTraits) = print(io, string(x))
 
 
-# Define Order Side Type and utilities
+# Define Order Side and utilities
+"""
+    OrderSide
+
+Type representing whether an order is a buy order or sell order.
+New instance can be generated with `OrderSide(::Bool)` or by using exported constants
+`BUY_ORDER` and `SELL_ORDER`
+"""
 struct OrderSide
     is_buy::Bool
 end
 
-Base.string(x::OrderSide) = x.is_buy ? "BuyOrder" : "SellOrder"
+Base.string(x::OrderSide) = x.is_buy ? "OrderSide(Buy)" : "OrderSide(Sell)"
 Base.print(io::IO, x::OrderSide) = print(io, string(x))
-Base.show(io::IO, ::MIME"text/plain", x::OrderSide) = println(io, string(x))
-Base.show(io::IO, x::OrderSide) = println(io, string(x))
+Base.show(io::IO, ::MIME"text/plain", x::OrderSide) = print(io, string(x))
+Base.show(io::IO, x::OrderSide) = print(io, string(x))
+
+isbuy(x::OrderSide) = x.is_buy
+issell(x::OrderSide) = !x.is_buy
+
 const BUY_ORDER = OrderSide(true)
 const SELL_ORDER = OrderSide(false)
 
@@ -46,55 +63,62 @@ const SELL_ORDER = OrderSide(false)
 
 Type representing a limit order.
 
-An `Order{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}` is a struct representing a Limit Order which contains
+An `Order{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}` is a struct representing a resting Limit Order which contains
 
-    - `side::OrderSide`, the side of the book the order will rest in, where either `side=:ASK` or `side=:BID`.
+    - `side::OrderSide`, the side of the book the order will rest in. See [`OrderSide`](@ref) for more info.
     - `size::Sz`, the order size
     - `price::Px`, the price the order is set at
     - `orderid::Oid`, a unique Order ID
-    - `order_mode::OrderFillMode` representing how the order is to be filled
     - (optional) `acctid::Union{Aid,Nothing}`, which is set to nothing if the account is unknown or irrelevant.
 
 One can create a new `Order` as `Order{Sz,Px,Pid,Aid}(side, size, price, orderid, order_mode [,acctid=nothing])`, where the types of 
 `size` and `price` will be cast to the correct types. The `orderid` and `acctid` types will not be cast in order to avoid ambiguity.
-
 """
 struct Order{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}
     side::OrderSide
     size::Sz
     price::Px
     orderid::Oid
-    order_mode::OrderFillMode
     acctid::Union{Aid,Nothing}
-    function Order{Sz,Px}(
-        side::Symbol,
+    function Order{Sz,Px,Oid,Aid}(
+        side::OrderSide,
         size::Real,
         price::Real,
         orderid::Oid,
-        order_mode::OrderFillMode,
         acctid::Union{Aid,Nothing} = nothing,
-    ) where {Oid<:Integer,Aid<:Integer,Sz<:Real,Px<:Real}
-        new{Oid,Aid,Sz,Px}(side, SzT(size), Px(price), orderid, order_mode, acctid) # cast price and size to correct types
+    ) where {Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}
+        new{Sz,Px,Oid,Aid}(side, Sz(size), Px(price), orderid, acctid) # cast price and size to correct types
     end
 end
 
+# Order utility functions
 has_acct(o::Order) = isnothing(o.acctid)
+isbuy(o::Order) = o.side.is_buy
 
 
-"""
-    order_types(::Order{Sz,Px,Oid,Aid})
+function Base.show(io::IO,o::Order{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid}
+    str_lst = [
+        "Order{$Sz,$Px,$Oid,$Aid}(",
+        "side=$(o.side),",
+        "size=$(o.size),",
+        "price=$(o.price),",
+        "orderid=$(o.orderid),",
+        "acctid=$(o.acctid)",
+        ")"]
+    join(io,str_lst," ")
+end
 
-Return parametric types of either an `Order`, `OrderQueue`, `OneSidedbook` or `OrderBook`.
-
-
-"""
-order_types(::Order{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid} = Sz, Px, Oid, Aid
-order_types(::Type{Order{Sz,Px,Oid,Aid}}) where {Sz,Px,Oid,Aid} = Sz, Px, Oid, Aid
-
-# order_types(::OrderQueue{Oid,Aid,Sz,Px}) where {Oid,Aid,Sz,Px} = Oid, Aid, Sz, Px
-# order_types(::OneSidedBook{Oid,Aid,Sz,Px}) where {Oid,Aid,Sz,Px} = Oid, Aid, Sz, Px
-# order_types(::OrderBook{Oid,Aid,Sz,Px}) where {Oid,Aid,Sz,Px} = Oid, Aid, Sz, Px
-
+function Base.print(io::IO,o::Order{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid}
+    str_lst = [
+        "Order{$Sz,$Px,$Oid,$Aid}(",
+        "side=$(o.side),",
+        "size=$(o.size),",
+        "price=$(o.price),",
+        "orderid=$(o.orderid),",
+        "acctid=$(o.acctid)",
+        ")"]
+    join(io,str_lst)
+end
 
 
 # Orderbook State Saving Methods
@@ -105,7 +129,7 @@ end
 
 "Return new order with size modified"
 copy_modify_size(o::Order{Sz,Px,Oid,Aid}, new_size::Sz) where {Sz,Px,Oid,Aid} =
-    Order{Sz,Px,Oid,Aid}(o.side, new_size::Sz, o.price, o.orderid, o.order_mode, o.acctid)
+    Order{Sz,Px,Oid,Aid}(o.side, new_size::Sz, o.price, o.orderid, o.acctid)
 
 
 """"
@@ -132,6 +156,8 @@ struct OrderQueue{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}
     end
 end
 
+Base.length(q::OrderQueue,) = length(q.queue)
+Base.iterate(q::OrderQueue,i=1) = iterate(q.queue,i)
 
 
 # Insert, delete, push, pop orders into/out of OrderQueue
@@ -154,17 +180,17 @@ function Base.pushfirst!(
 end
 
 isequal_orderid(o::Order{<:Real,<:Real,Oid,<:Real}, this_id::Oid) where {Oid<:Integer} =
-    o.orderid === this_id
+    o.orderid == this_id
 order_id_match(order_id) = Base.Fix2(isequal_orderid, order_id)
 
-@inline function _popat_orderid!(
+@inline function _popat_orderid_internal!(
     oq::OrderQueue{Sz,Px,Oid,Aid},
     pop_id::Oid,
-) where {Sz,Px,Oid,Aid,Ord<:Order{Sz,Px,Oid,Aid}}
+) where {Sz,Px,Oid,Aid}
     ret_ix = findfirst(order_id_match(pop_id), oq.queue)::Union{Int64,Nothing}
     return (
-        isnothing(ret_ix) ? ret_ix::Nothing : popat!(oq.queue, ret_ix)::Ord
-    )::Union{Ord,Nothing}
+        isnothing(ret_ix) ? ret_ix::Nothing : popat!(oq.queue, ret_ix)::Order{Sz,Px,Oid,Aid}
+    )::Union{Order{Sz,Px,Oid,Aid},Nothing}
 end
 
 
@@ -179,7 +205,7 @@ Returns eiter
 
 """
 function popat_orderid!(oq::OrderQueue{Sz,Px,Oid,Aid}, orderid::Oid) where {Sz,Px,Oid,Aid}
-    ord = _popat_orderid!(oq, orderid)
+    ord = _popat_orderid_internal!(oq, orderid)
     if !isnothing(ord) # if order is returned, track stats
         oq.total_volume[] -= ord.size
         oq.num_orders[] -= 1
@@ -188,7 +214,7 @@ function popat_orderid!(oq::OrderQueue{Sz,Px,Oid,Aid}, orderid::Oid) where {Sz,P
 end
 
 function Base.popfirst!(oq::OrderQueue{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid}
-    if isempty(oq.queue)
+    if isempty(oq)
         return nothing
     else
         ord = Base.popfirst!(oq.queue)
