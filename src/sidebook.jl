@@ -190,21 +190,3 @@ function pop_order!(
 end
 
 
-# Define Iteration Utilities
-"""
-    ask_orders(sb::OneSidedBook)
-
-    Returns an iterator over all __ask orders__ by price/time priority.
-"""
-ask_orders(sb::OneSidedBook) = Iterators.flatten(q for (k,q) in sb.ask_orders)
-
-"""
-    bid_orders(sb::OneSidedBook)
-
-    Returns an iterator over all __bid orders__ by price/time priority.
-"""
-bid_orders(sb::OneSidedBook) = Iterators.flatten(q for (k,q) in sb.bid_orders)
-
-# Base.iterate(sb::OneSidedBook) = iterate(sb.book)
-# Base.iterate(sb::OneSidedBook,nd::AVLTrees.Node) = iterate(sb.book,nd)
-# Base.length(sb::OneSidedBook) = length(sb.book)

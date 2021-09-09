@@ -110,12 +110,12 @@ end
 end
 
 """
-    book_depth_info(ob::OrderBook; max_depth=5)
+    book_depth_info(ob::OrderBook, max_depth=5)
 
 Returns prices, volumes and order counts at bid and ask in `ob::OrderBook` 
 until fixed depth `max_depth` as a nested `Dict`.
 """
-function book_depth_info(ob::OrderBook; max_depth=5)
+function book_depth_info(ob::OrderBook, max_depth=5)
     return Dict(
         :BID => _sidebook_stats(ob.bid_orders, max_depth),
         :ASK => _sidebook_stats(ob.ask_orders, max_depth),
@@ -180,6 +180,22 @@ function get_acct(ob::OrderBook{Sz,Px,Oid,Aid}, acct_id::Aid) where {Sz,Px,Oid,A
     return get(ob.acct_map, acct_id, nothing)
 end
 
+
+"""
+    ask_orders(sb::OneSidedBook)
+
+Return an iterator over all __ask orders__ by price/time priority.
+"""
+ask_orders(ob::OrderBook) = Iterators.flatten(q for (k,q) in ob.ask_orders.book)
+
+"""
+    bid_orders(sb::OneSidedBook)
+
+Return an iterator over all __bid orders__ by price/time priority.
+"""
+bid_orders(ob::OrderBook) = Iterators.flatten(q for (k,q) in ob.bid_orders.book)
+
+
 """
     write_csv(
         io::IO,
@@ -217,7 +233,7 @@ end
 ) where {Sz,Px,Oid,Aid}
     # Get book info
     max_depth = ob.flags[:PlotTickMax]
-    sb_info = LimitOrderBook.book_depth_info(ob; max_depth=max_depth)
+    sb_info = LimitOrderBook.book_depth_info(ob, max_depth)
     all_prices = [sb_info[:BID][:price]; sb_info[:ASK][:price]]
 
     println(io, "\n Order Book histogram (within $max_depth ticks of center):\n")

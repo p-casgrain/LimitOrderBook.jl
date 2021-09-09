@@ -283,20 +283,20 @@ end
 
 """
     cancel_order!(ob::OrderBook, o::Order)
-    cancel_order!(ob::OrderBook, orderid, price, side [, acct_id=nothing])
+    cancel_order!(ob::OrderBook, orderid, side, price [, acct_id=nothing])
 
 Cancels Order `o`, or order with matching information from OrderBook.
 
 Provide `acct_id` if known to guarantee correct account tracking.
 """
 function cancel_order!(
-    ob::OrderBook{Sz,Px,Oid,<:Integer}, orderid::Oid, price::Px, side::OrderSide
-) where {Sz,Px,Oid}
+    ob::OrderBook{Sz,Px,Oid,Aid}, orderid::Oid, side::OrderSide, price
+) where {Sz,Px,Oid,Aid}
     # Delete order from bid (buy) or ask (sell) book
     if isbuy(side)
-        popped_ord = pop_order!(ob.bid_orders, price, orderid)
+        popped_ord = pop_order!(ob.bid_orders, Px(price), orderid)
     else
-        popped_ord = pop_order!(ob.ask_orders, price, orderid)
+        popped_ord = pop_order!(ob.ask_orders, Px(price), orderid)
     end
     # Delete order from account maps
     if !isnothing(popped_ord) && !isnothing(popped_ord.acctid)
@@ -305,4 +305,4 @@ function cancel_order!(
     return popped_ord
 end
 
-cancel_order!(ob::OrderBook, o::Order) = cancel_order!(ob, o.orderid, o.price, o.side)
+cancel_order!(ob::OrderBook, o::Order) = cancel_order!(ob, o.orderid, o.side, o.price)

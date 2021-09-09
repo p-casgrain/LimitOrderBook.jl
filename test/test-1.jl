@@ -31,7 +31,7 @@ end
     @test length(ob.acct_map[10101]) == 50000 # Check account order tracking
     # Cancel them all
     for (orderid, price, size, side) in order_info_lst
-        cancel_order!(ob,orderid,price,side)
+        cancel_order!(ob,orderid,side,price)
     end
     # Check emptiness
     @test isempty(ob.bid_orders)
@@ -85,7 +85,7 @@ end
     expected_mo_match_size = [5,15,6,1,2,1]
     
     # Compute realized values
-    book_info_after = book_depth_info(ob,max_depth=1000)
+    book_info_after = book_depth_info(ob,1000)
     realized_bid_volm_after  = sum(book_info_after[:BID][:volume])
     realized_bid_n_orders_after = sum(book_info_after[:BID][:orders])
     realized_best_bid_after = first(book_info_after[:BID][:price])

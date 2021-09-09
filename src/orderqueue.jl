@@ -70,15 +70,16 @@ const SELL_ORDER = OrderSide(false)
 Type representing a limit order.
 
 An `Order{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}` is a struct representing a resting Limit Order which contains
+ - `side::OrderSide`, the side of the book the order will rest in. See [`OrderSide`](@ref) for more info.
+ - `size::Sz`, the order size
+ - `price::Px`, the price the order is set at
+ - `orderid::Oid`, a unique Order ID
+ - (optional) `acctid::Union{Aid,Nothing}`, which is set to nothing if the account is unknown or irrelevant.
 
-    - `side::OrderSide`, the side of the book the order will rest in. See [`OrderSide`](@ref) for more info.
-    - `size::Sz`, the order size
-    - `price::Px`, the price the order is set at
-    - `orderid::Oid`, a unique Order ID
-    - (optional) `acctid::Union{Aid,Nothing}`, which is set to nothing if the account is unknown or irrelevant.
-
-One can create a new `Order` as `Order{Sz,Px,Pid,Aid}(side, size, price, orderid, order_mode [,acctid=nothing])`, where the types of 
-`size` and `price` will be cast to the correct types. The `orderid` and `acctid` types will not be cast in order to avoid ambiguity.
+One can create a new `Order` as 
+    Order{Sz,Px,Pid,Aid}(side, size, price, orderid, order_mode [,acctid=nothing]) 
+where the types of `size` and `price` will be cast to the correct types. 
+The `orderid` and `acctid` types will not be cast in order to avoid ambiguity.
 """
 struct Order{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}
     side::OrderSide

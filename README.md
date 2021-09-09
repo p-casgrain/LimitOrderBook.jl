@@ -14,7 +14,7 @@ The package does not yet include any speed benchmarks, though it should be relat
 
 ## Documentation
 
-The most basic atomic type is the `Order` which contains information about its side, quantity, price, order-id and account-id. The `OrderBook` object is a data structure containing `Order`s. The package includes the functions `submit_limit_order!`, `cancel_limit_order!` and `submit_market_order!` to insert and remove orders, as well as `book_depth_info`, `volume_bid_ask`, `best_bid_ask`, `n_orders_bid_ask`and `get_acct` to return order book statistics and information. The utility function `write_csv` writes the entire book to an IO stream in csv format to save its state. The package also includes `print`ing facilities to display the book status in the console. See the included documentation and example for more details.
+The most basic atomic type is the `Order` which contains information about its side, quantity, price, order-id and account-id. The `OrderBook` object is a data structure containing `Order`s. The package includes the functions `submit_limit_order!`, `cancel_order!` and `submit_market_order!` to insert and remove orders, as well as `book_depth_info`, `volume_bid_ask`, `best_bid_ask`, `n_orders_bid_ask`and `get_acct` to return order book statistics and information. The utility function `write_csv` writes the entire book to an IO stream in csv format to save its state. The package also includes `print`ing facilities to display the book status in the console. See the included documentation and example for more details.
 
 ### Installation
 
@@ -30,12 +30,19 @@ A simple example is provided below.
     using LimitOrderBook
     MyLOBType = OrderBook{Int64,Float32,Int64,Int64} # define LOB type
     ob = MyLOBType() # initialize order book
+
+    # fill book with random limit orders
     randspread() = ceil(-0.03*log(rand()),digits=2)
     for i=1:100
         submit_limit_order!(ob,2i,BUY_ORDER,99.0-randspread(),rand(1:25))
         submit_limit_order!(ob,3i,SELL_ORDER,99.0+randspread(),rand(1:25))
     end
-    submit_market_order!(ob,BUY_ORDER,100) # pass a market order
+
+    submit_market_order!(ob,BUY_ORDER,100) # process a market order
+
+    submit_limit_order!(ob,111,SELL_ORDER,99.05,10) # submit an order
+    cancel_order!(ob,111,SELL_ORDER,99.05) # now cancel it
+
     ob # show state of the book
 ````````````
 
