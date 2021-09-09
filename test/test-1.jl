@@ -1,5 +1,4 @@
-using LimitOrderBook
-using Test
+
 
 begin # Create (Deterministic) Limit Order Generator
     MyOrderSubTypes = (Int64,Float32,Int64,Int64) # define types for Order Size, Price, Order IDs, Account IDs
@@ -27,7 +26,7 @@ end
     order_info_lst = take(lmt_order_info_iter,50000)
     # Add a bunch of orders
     for (orderid, price, size, side) in order_info_lst
-        submit_limit_order!(ob,orderid,side,price,size,VANILLA_ORDER,10101)
+        submit_limit_order!(ob,orderid,side,price,size,10101)
     end
     @test length(ob.acct_map[10101]) == 50000 # Check account order tracking
     # Cancel them all
@@ -44,7 +43,7 @@ end
     ob = MyLOBType() #Initialize empty book
     # Add a bunch of orders
     for (orderid, price, size, side) in Base.Iterators.take( lmt_order_info_iter, 50 )
-        submit_limit_order!(ob,orderid,BUY_ORDER,price,size,VANILLA_ORDER)
+        submit_limit_order!(ob,orderid,BUY_ORDER,price,size)
     end
     mo_matches, mo_ltt = submit_market_order!(ob,SELL_ORDER,100000)
 
@@ -63,7 +62,7 @@ end
     
     # Add a bunch of orders
     for (orderid, price, size, side) in order_lst_tmp
-        submit_limit_order!(ob,orderid,side,price,size,VANILLA_ORDER)
+        submit_limit_order!(ob,orderid,side,price,size)
     end
 
     orders_before = Iterators.flatten(q.queue for (k,q) in ob.bid_orders.book) |> collect
@@ -105,16 +104,16 @@ end
     order_info_lst = take(lmt_order_info_iter,500)
     # Add a bunch of orders
     for (orderid, price, size, side) in order_info_lst
-        submit_limit_order!(ob,orderid,side,price,size,VANILLA_ORDER)
+        submit_limit_order!(ob,orderid,side,price,size)
     end
 
     # Test that inserting LO returns correctly
-    lmt_info = (10_000, BUY_ORDER, 99.97f0, 3, VANILLA_ORDER)
+    lmt_info = (10_000, BUY_ORDER, 99.97f0, 3,)
     lmt_obj, _, _ = submit_limit_order!(ob,lmt_info...)
     @test lmt_info[1:4] == (lmt_obj.orderid,lmt_obj.side,lmt_obj.price,lmt_obj.size)
 
     # Add something on top
-    submit_limit_order!(ob, 10_001, BUY_ORDER, 100.02f0, 900, VANILLA_ORDER)
+    submit_limit_order!(ob, 10_001, BUY_ORDER, 100.02f0, 900,)
 
     # Test that cancelling present order returns correctly
     lmt_obj_cancel = cancel_order!(ob,lmt_obj)
@@ -145,20 +144,20 @@ end
 
     # Add a bunch of orders
     for (orderid, price, size, side) in take(lmt_order_info_iter,100)
-        submit_limit_order!(ob,orderid,side,price,size,VANILLA_ORDER)
+        submit_limit_order!(ob,orderid,side,price,size)
     end
     
     # Add order with an account ID
     acct_id = 1313
     order_id0 = 10001
     my_acct_orders = MyOrderType[]
-    push!(my_acct_orders,submit_limit_order!(ob,order_id0,SELL_ORDER,100.03f0,50,VANILLA_ORDER,acct_id)[1])
-    push!(my_acct_orders,submit_limit_order!(ob,order_id0+1,BUY_ORDER,99.98f0,20,VANILLA_ORDER,acct_id)[1])
-    push!(my_acct_orders,submit_limit_order!(ob,order_id0+2,BUY_ORDER,99.97f0,30,VANILLA_ORDER,acct_id)[1])
+    push!(my_acct_orders,submit_limit_order!(ob,order_id0,SELL_ORDER,100.03f0,50,acct_id)[1])
+    push!(my_acct_orders,submit_limit_order!(ob,order_id0+1,BUY_ORDER,99.98f0,20,acct_id)[1])
+    push!(my_acct_orders,submit_limit_order!(ob,order_id0+2,BUY_ORDER,99.97f0,30,acct_id)[1])
 
     # Throw some more nameless orders on top
     for (orderid, price, size, side) in take(lmt_order_info_iter,20)
-        submit_limit_order!(ob,orderid,side,price,size,VANILLA_ORDER)
+        submit_limit_order!(ob,orderid,side,price,size)
     end
 
     # Get account list from book
@@ -177,13 +176,18 @@ end
 end
 
 
-using BenchmarkTools
-order_info_lst = take(lmt_order_info_iter,Int64(10_000)) |> collect
-# Add a bunch of orders
+# using BenchmarkTools
+# # Add a bunch of orders
 
-@benchmark begin
-    ob = MyLOBType() #Initialize empty book
-    for (orderid, price, size, side) in order_info_lst
-        submit_limit_order!(ob,orderid,side,price,size,VANILLA_ORDER)
-    end
-end
+# ob = MyLOBType() #Initialize empty book
+
+# order_info_lst = take(lmt_order_info_iter,Int64(10_000)) |> collect
+# for (orderid, price, size, side) in order_info_lst
+#     submit_limit_order!(ob,orderid,side,price,size)
+# end
+
+# (orderid, price, size, side), _ =  Iterators.peel(lmt_order_info_iter)
+# @benchmark submit_limit_order!($ob,$orderid,$side,$price,$size,)
+# @benchmark (submit_market_order!($ob,BUY_ORDER,1000);)
+
+# @code_typed submit_limit_order!(ob,orderid,side,price,size)

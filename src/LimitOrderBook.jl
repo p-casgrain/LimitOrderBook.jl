@@ -6,7 +6,7 @@ include("orderqueue.jl")
 include("sidebook.jl")
 include("book.jl")
 include("ordermatching.jl")
-export BUY_ORDER, SELL_ORDER, VANILLA_ORDER, ALLORNONE_ORDER, IOC_ORDER, FILLORKILL_ORDER
+export BUY_ORDER, SELL_ORDER, VANILLA_FILLTYPE, IMMEDIATEORCANCEL_FILLTYPE, FILLORKILL_ORDER
 export OrderBook, Order, OrderTraits, AcctMap, OrderSide
 export submit_order!,
     submit_limit_order!,

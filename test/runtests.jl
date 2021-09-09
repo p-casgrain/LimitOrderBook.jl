@@ -1,7 +1,7 @@
 using LimitOrderBook
-using TeSz
+using Test
 using Base.Iterators: zip,cycle,take,filter
 
-@teSzset "LimitOrderBook.jl" begin
-    include("./teSz-1.jl")
+@testset "LimitOrderBook.jl" begin
+    include("./test-1.jl")
 end

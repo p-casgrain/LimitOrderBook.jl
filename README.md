@@ -24,9 +24,18 @@ Pkg.add(url="https://github.com/p-casgrain/LimitOrderBook.jl")
 
 ### Examples
 
-A simple example is provided below to demonstrate example uses of the package.
+A simple example is provided below.
 
 ````````````julia
-
+    using LimitOrderBook
+    MyLOBType = OrderBook{Int64,Float32,Int64,Int64} # define LOB type
+    ob = MyLOBType() # initialize order book
+    randspread() = ceil(-0.03*log(rand()),digits=2)
+    for i=1:100
+        submit_limit_order!(ob,2i,BUY_ORDER,99.0-randspread(),rand(1:25))
+        submit_limit_order!(ob,3i,SELL_ORDER,99.0+randspread(),rand(1:25))
+    end
+    submit_market_order!(ob,BUY_ORDER,100) # pass a market order
+    ob # show state of the book
 ````````````
 

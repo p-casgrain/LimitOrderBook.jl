@@ -220,7 +220,7 @@ end
     sb_info = LimitOrderBook.book_depth_info(ob; max_depth=max_depth)
     all_prices = [sb_info[:BID][:price]; sb_info[:ASK][:price]]
 
-    println(io, "\n Order Book shape (within $max_depth ticks of center)")
+    println(io, "\n Order Book histogram (within $max_depth ticks of center):\n")
 
     if !isempty(sb_info[:BID][:volume])
         # Get max price str length
@@ -235,7 +235,7 @@ end
             padding=0,
         )
 
-        println(io, bid_plt)
+        println(io, bid_plt, '\n')
     else
         print(io, "\n    :BID   <empty>\n")
     end
@@ -263,11 +263,11 @@ end
 function _print_book_info(io::IO, ob::OrderBook{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid}
     return print(
         io,
-        "OrderBook{Oid=$Oid,Aid=$Aid,Sz=$Sz,Px=$Px} with properties:\n",
+        "OrderBook{Sz=$Sz,Px=$Px,Oid=$Oid,Aid=$Aid} with properties:\n",
         "  ⋄ best bid/ask price: $(best_bid_ask(ob))\n",
         "  ⋄ total bid/ask volume: $(volume_bid_ask(ob))\n",
         "  ⋄ total bid/ask orders: $(n_orders_bid_ask(ob))\n",
-        "  ⋄ flags = $(ob.flags)",
+        "  ⋄ flags = $([ k => v for (k,v) in ob.flags])",
     )
 end
 
@@ -276,5 +276,10 @@ Base.print(io::IO, ob::OrderBook) = _print_book_info(io, ob)
 function Base.show(io::IO, ::MIME"text/plain", ob::OrderBook)
     println(io, ob)
     _print_book_barplot(io, ob)
+    return nothing
+end
+
+function Base.show(io::IO, ob::OrderBook)
+    println(io, ob)
     return nothing
 end

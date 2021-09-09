@@ -4,10 +4,15 @@
 """
     OrderTraits(allornone::Bool,immediateorcancel::Bool,allow_cross::Bool)
 
-`OrderTraits` specifies order traits which modify its execution logic.
+`OrderTraits` specify order traits which modify execution logic.
 
 An instance can be initialized by using the keyword intializer or by using the exported constants
-`VANILLA_ORDER`, `ALLORNONE_ORDER`, `IOC_ORDER`, `FILLORKILL_ORDER`.
+`VANILLA_FILLTYPE`, `IMMEDIATEORCANCEL_FILLTYPE`, `FILLORKILL_FILLTYPE`.
+
+The default execution logic is represented by `VANILLA_FILLTYPE`.
+
+__Note:__ This feature is not well supported yet. 
+Other than the constants described above, use non-vanilla modes with caution.
 
 """
 Base.@kwdef struct OrderTraits
@@ -23,10 +28,11 @@ allows_book_insert(mode::OrderTraits) = !isimmediateorcancel(mode)
 allows_partial_fill(mode::OrderTraits) = !isallornone(mode)
 allows_cross(mode::OrderTraits) = mode.allow_cross
 
-const VANILLA_ORDER = OrderTraits(false,false,true)
-const ALLORNONE_ORDER = OrderTraits(true,false,true)
-const IOC_ORDER = OrderTraits(false,true,true)
-const FILLORKILL_ORDER = OrderTraits(true,true,true)
+const VANILLA_FILLTYPE = OrderTraits(false,false,true)
+const FILLORKILL_FILLTYPE = OrderTraits(true,true,true)
+const IMMEDIATEORCANCEL_FILLTYPE = OrderTraits(false,true,true)
+# const ALLORNONE_ORDER = OrderTraits(true,false,true)
+
 
 Base.string(x::OrderTraits) =
     @sprintf("OrderTraits(allornone=%s,immediateorcancel=%s,allow_cross=%s)",x.allornone,x.immediateorcancel,x.allow_cross)

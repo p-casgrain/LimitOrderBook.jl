@@ -6,20 +6,20 @@
         side::OrderSide,
         limit_price::Real,
         limit_size::Real,
-        fill_mode::OrderTraits,
-        [, acct_id::Aid ]
+        [, acct_id::Aid, fill_mode::OrderTraits ]
     )
 
 Enter limit order with size `limit_size`, price `limit_price` with `side::OrderSide` into `ob::OrderBook`.
 
-Returns tuple of 
+If an account if `acct_id` is provided, account holdings are tracked in `ob.acct_map`.
+
+Order execution logic can be modified according to the argument `fill_mode::`[`OrderTraits`](@ref) which
+defaults to `fill_mode=VANILLA_FILLTYPE`, representing the default order matching mode. 
+
+`submit_limit_order!` returns tuple of 
  - `new_open_order::Order` representing the order left in the book after matching. Is `nothing` if no order was inserted
  - `order_match_lst::Vector{Order}` representing the matched orders if the order crosses the book.
  - `left_to_trade::Sz` representing the size of the portion of the order which could neither inserted nor matched.
-
-Order execution logic can be modified according to the argument `fill_mode::`[`OrderTraits`](@ref). 
-
-If an account if `acct_id` is provided, account holdings are tracked in `ob.acct_map`.
 
 """
 function submit_limit_order!(
@@ -28,8 +28,8 @@ function submit_limit_order!(
     side::OrderSide,
     limit_price::Real,
     limit_size::Real,
-    fill_mode::OrderTraits,
     acct_id::Union{Nothing,Aid}=nothing,
+    fill_mode::OrderTraits=VANILLA_FILLTYPE,
 ) where {Sz,Px,Oid,Aid}
     # Part 0 - Check Arguments
     if !((limit_price > zero(limit_price)) && (limit_size > zero(limit_size)))
@@ -58,7 +58,7 @@ function submit_limit_order!(
     ## Part 2 - Rest the remaining order in the book if possible
     if allows_book_insert(fill_mode) && !iszero(remaining_size) # if there are remaining shares, try to add remaining to the LOB
         best_bid, best_ask = best_bid_ask(ob) # new best bid and ask
-        if isbuy(side) && ( isnothing(best_ask) || (limit_price < best_ask) ) # if order is a buy and limit price is valid for resting order
+        if isbuy(side) && (isnothing(best_ask) || (limit_price < best_ask)) # if order is a buy and limit price is valid for resting order
             # create and insert order object into BID book
             new_open_order = Order{Sz,Px,Oid,Aid}(
                 side, remaining_size, limit_price, orderid, acct_id
@@ -68,14 +68,15 @@ function submit_limit_order!(
             isnothing(acct_id) || _add_order_acct_map!(ob.acct_map, acct_id, new_open_order)
             # set remaining size to zero
             remaining_size = zero(Sz)
-        elseif !isbuy(side) && ( isnothing(best_bid) || (limit_price > best_bid) ) # if order is a sell and limit price is valid for resting order
+        elseif !isbuy(side) && (isnothing(best_bid) || (limit_price > best_bid)) # if order is a sell and limit price is valid for resting order
             # create and insert order object into ASK book
             new_open_order = Order{Sz,Px,Oid,Aid}(
                 side, remaining_size, limit_price, orderid, acct_id
             )
             insert_order!(ob.ask_orders, new_open_order)
             # if account_id present, add order account map
-            !isnothing(acct_id) && _add_order_acct_map!(ob.acct_map, acct_id, new_open_order)
+            !isnothing(acct_id) &&
+                _add_order_acct_map!(ob.acct_map, acct_id, new_open_order)
             # set remaining size to zero
             remaining_size = zero(Sz)
         else # if not appropriate to insert new order, register new order as nothing
@@ -86,7 +87,9 @@ function submit_limit_order!(
     end
 
     ## Part 3 - Return information
-    return new_open_order::Union{Order{Sz,Px,Oid,Aid},Nothing}, cross_match_lst, remaining_size
+    return (
+        new_open_order, cross_match_lst, remaining_size
+    )::Tuple{Union{Order{Sz,Px,Oid,Aid},Nothing},Vector{Order{Sz,Px,Oid,Aid}},Sz}
 end
 
 @inline _is_best_price_inside_limit(::OneSidedBook, ::Nothing) = true
@@ -123,7 +126,7 @@ function _walk_order_book_bysize!(
     order_size::Sz,
     limit_price::Union{Px,Nothing},
     order_mode::OrderTraits,
-) where {Sz,Px,Oid,Aid}
+)::Tuple{Vector{Order{Sz,Px,Oid,Aid}},Sz} where {Sz,Px,Oid,Aid}
     # Allocate memory for order output
     order_match_lst = Vector{Order{Sz,Px,Oid,Aid}}()
     shares_left = order_size # remaining quantity to trade
@@ -174,7 +177,7 @@ function _walk_order_book_byfunds!(
     order_funds::Real,
     limit_price::Union{Px,Nothing},
     order_mode::OrderTraits,
-) where {Sz,Px,Oid,Aid}
+)::Tuple{Vector{Order{Sz,Px,Oid,Aid}},Real} where {Sz,Px,Oid,Aid}
     # Allocate memory for order output
     order_match_lst = Vector{Order{Sz,Px,Oid,Aid}}()
     funds_left = order_funds # remaining quantity to trade
@@ -235,8 +238,8 @@ All other entries will be ignored.
 function submit_market_order!(
     ob::OrderBook{Sz,Px,Oid,Aid},
     side::OrderSide,
-    mo_size::Real,
-    fill_mode::OrderTraits=VANILLA_ORDER,
+    mo_size::Real;
+    fill_mode::OrderTraits=VANILLA_FILLTYPE,
 ) where {Sz,Px,Oid,Aid}
     mo_size > zero(mo_size) || error("market order argument mo_size must be positive")
     if isbuy(side)
@@ -266,7 +269,7 @@ All other entries will be ignored.
 
 """
 function submit_market_order_byfunds!(
-    ob::OrderBook, side::OrderSide, funds::Real, fill_mode::OrderTraits=VANILLA_ORDER
+    ob::OrderBook, side::OrderSide, funds::Real, fill_mode::OrderTraits=VANILLA_FILLTYPE
 )
     funds > zero(funds) || error("market order argument funds must be positive")
     if isbuy(side)
