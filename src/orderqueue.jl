@@ -42,7 +42,7 @@ Base.show(io::IO, ::MIME"text/plain", x::OrderTraits) = print(io, string(x))
 
 # Define Order Side and utilities
 """
-    OrderSide
+    OrderSide(is_buy::Bool)
 
 Type representing whether an order is a buy order or sell order.
 New instance can be generated with `OrderSide(::Bool)` or by using exported constants
@@ -77,7 +77,11 @@ An `Order{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer}` is a struct representing
  - (optional) `acctid::Union{Aid,Nothing}`, which is set to nothing if the account is unknown or irrelevant.
 
 One can create a new `Order` as 
-    Order{Sz,Px,Pid,Aid}(side, size, price, orderid, order_mode [,acctid=nothing]) 
+
+```
+Order{Sz,Px,Pid,Aid}(side, size, price, orderid, order_mode [,acctid=nothing])
+```
+
 where the types of `size` and `price` will be cast to the correct types. 
 The `orderid` and `acctid` types will not be cast in order to avoid ambiguity.
 """

@@ -223,7 +223,7 @@ end
     submit_market_order!(ob::OrderBook,side::OrderSide,mo_size[,fill_mode::OrderTraits]) 
 
 Submit market order to `ob::OrderBook` with `side::OrderSide` and size `mo_size`.
-Optionally `mode::OrderTraits` may be provided to modify fill logic.
+Optionally `fill_mode::OrderTraits` may be provided to modify fill logic.
 Market orders are filled by price-time priority.
 
 Returns tuple `( ord_lst::Vector{Order}, left_to_trade::Sz )`
@@ -231,7 +231,7 @@ where
  - `ord_lst` is a list of _limit orders_ that _market order_ matched with
  - `left_to_trade` is the remaining size of un-filled order ( `==0` if order is complete, `>0` if incomplete)
 
-__Note:__ Only `mode.allornone` will be considered from `mode::OrderTraits`.
+__Note:__ Only `fill_mode.allornone` will be used from `fill_mode::OrderTraits`.
 All other entries will be ignored.
 
 """
@@ -253,7 +253,7 @@ end
     submit_market_order_byfunds!(ob::OrderBook,side::Symbol,funds[,mode::OrderTraits]) 
 
 Submit market order to `ob::OrderBook` `side::OrderSide` and available funds `funds::Real`.
-Optionally `mode::OrderTraits` may be provided to modify fill logic.
+Optionally `fill_mode::OrderTraits` may be provided to modify fill logic.
 Market orders are filled by price-time priority.
 
 Functionality is exactly the same as `submit_market_order!` except _available funds_ (max total price paid on order) 
@@ -264,7 +264,7 @@ where
  - `ord_lst` is a list of _limit orders_ that _market order_ matched with
  - `funds_leftover` is the amount of remaining funds if not enough liquidity was available ( `==0` if order is complete, `>0` if incomplete)
 
-__Note:__ Only `mode.allornone` will be considered from `mode::OrderTraits`.
+__Note:__ Only `fill_mode.allornone` will be considered from `fill_mode::OrderTraits`.
 All other entries will be ignored.
 
 """

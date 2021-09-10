@@ -6,10 +6,11 @@ using Base: show, print, popfirst!
 
 Collection of open orders by account. 
 
-`{Sz,Px,Oid,Aid}` characterize the type of Order present in the `AcctMap`. 
-See documentation on [`Order`](@ref) for more information on these types.
+`(Sz,Px,Oid,Aid)` characterize the type of Order present in the `AcctMap`. 
+See documentation on [`Order`](@ref) for more information on the meaning of types.
 
-The account map has the structure of a nested `Dict`.
+The account map is implemented as a `Dict` containing `AVLTree`s.
+    AcctMap{Sz,Px,Oid,Aid} = Dict{Aid,AVLTree{Oid,Order{Sz,Px,Oid,Aid}}}
 The outer key is the account id, mapping to an `AVLTree` of `Order`s keyed by order id.
 """
 AcctMap{Sz<:Real,Px<:Real,Oid<:Integer,Aid<:Integer} = Dict{
@@ -39,7 +40,7 @@ end
 
 An `OrderBook` is a data structure containing __limit orders__ represented as objects of type `Order{Sz,Px,Oid,Aid}`.
 
-See documentation on [`Order`](@ref) for more information on the parametric type `Order{Sz,Px,Oid,Aid}`.
+See documentation on [`Order`](@ref) for more information on this type.
 
 How to use `Orderbook`:
  - Initialize an empty limit order book as `OrderBook{Sz,Px,Oid,Aid}()`
@@ -165,7 +166,7 @@ end
     order_types(::OneSidedBook{Sz,Px,Oid,Aid})
     order_types(::OrderBook{Sz,Px,Oid,Aid})
 
-Return parametric types of either an `Order`, `OrderQueue`, `OneSidedbook` or `OrderBook`.
+Returns `(Sz,Px,Oid,Aid)`.
 """
 order_types(::Order{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid} = Sz, Px, Oid, Aid
 order_types(::OneSidedBook{Sz,Px,Oid,Aid}) where {Sz,Px,Oid,Aid} = Sz, Px, Oid, Aid
