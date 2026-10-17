@@ -29,26 +29,29 @@ Pkg.add(url="https://github.com/p-casgrain/LimitOrderBook.jl")
 
 A simple example is provided below.
 
-````````````julia
-    using LimitOrderBook
-    MyLOBType = OrderBook{Int64,Float32,Int64,Int64} # define LOB type
-    ob = MyLOBType() # initialize order book
+```julia
+using LimitOrderBook
+MyLOBType = OrderBook{Int64,Float32,Int64,Int64} # define LOB type
+ob = MyLOBType() # initialize order book
 
-    # fill book with random limit orders
-    randspread() = ceil(-0.05*log(rand()),digits=2)
-    rand_side() = rand([BUY_ORDER,SELL_ORDER])
-    for i=1:1000
-        # add some limit orders
-        submit_limit_order!(ob,2i,BUY_ORDER,99.0-randspread(),rand(5:5:20))
-        submit_limit_order!(ob,3i,SELL_ORDER,99.0+randspread(),rand(5:5:20))
-        if (rand() < 0.1) # and some market orders
-            submit_market_order!(ob,rand_side(),rand(10:25:150))
-        end
+# fill book with random limit orders
+randspread() = ceil(-0.05*log(rand()), digits = 2)
+rand_side() = rand([BUY_ORDER, SELL_ORDER])
+for i = 1:1000
+    # add some limit orders
+    submit_limit_order!(ob, 2i, BUY_ORDER, 99.0-randspread(), rand(5:5:20))
+    submit_limit_order!(ob, 3i, SELL_ORDER, 99.0+randspread(), rand(5:5:20))
+    if (rand() < 0.1) # and some market orders
+        submit_market_order!(ob, rand_side(), rand(10:25:150))
     end
+end
 
-    submit_limit_order!(ob,111,SELL_ORDER,99.05,10) # submit an order
-    cancel_order!(ob,111,SELL_ORDER,99.05) # now cancel it
+submit_limit_order!(ob, 111, SELL_ORDER, 99.05, 10) # submit an order
+cancel_order!(ob, 111, SELL_ORDER, 99.05) # now cancel it
 
-    ob # show state of the book
-````````````
+ob # show state of the book
+```
+
+<img width="674" height="463" alt="image" src="https://github.com/user-attachments/assets/4c25404f-7134-432d-ae4b-bea31eea40bb" />
+
 
