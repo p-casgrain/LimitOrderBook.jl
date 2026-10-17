@@ -203,3 +203,31 @@ end
 # end
 
 # @benchmark submit_limit_order!(ob,$2,$(rand([BUY_ORDER,SELL_ORDER])),$(99.0+rand([1,-1])*randspread()),$(rand(1:25)))
+
+@testset "Marketable sell limit order crosses" begin # sell LO at or below the best bid must match, not be dropped
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, BUY_ORDER, 99.98f0, 5)
+    submit_limit_order!(ob, 2, BUY_ORDER, 99.99f0, 3)
+    submit_limit_order!(ob, 3, SELL_ORDER, 100.01f0, 4)
+    new_ord, matches, ltt = submit_limit_order!(ob, 4, SELL_ORDER, 99.98f0, 6) # walks 99.99 (3) then 99.98 (3 of 5)
+    @test isnothing(new_ord)
+    @test [(o.orderid, o.size) for o in matches] == [(2, 3), (1, 3)]
+    @test ltt == 0
+    @test best_bid_ask(ob) == (99.98f0, 100.01f0)
+    @test ob.bid_orders.num_orders == 1
+    new_ord, matches, ltt = submit_limit_order!(ob, 5, SELL_ORDER, 99.97f0, 4) # takes the last 2 at 99.98, rests 2 at 99.97
+    @test [(o.orderid, o.size) for o in matches] == [(1, 2)]
+    @test (new_ord.orderid, new_ord.size, new_ord.price) == (5, 2, 99.97f0)
+    @test best_bid_ask(ob) == (nothing, 99.97f0)
+end
+
+@testset "Cancelling a missing order leaves the book unchanged" begin
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, BUY_ORDER, 99.98f0, 5)
+    @test isnothing(cancel_order!(ob, 2, BUY_ORDER, 99.98f0)) # same price level, unknown id
+    @test ob.bid_orders.num_orders == 1
+    @test ob.bid_orders.total_volume == 5
+    @test cancel_order!(ob, 1, BUY_ORDER, 99.98f0).orderid == 1
+    @test ob.bid_orders.num_orders == 0
+    @test isempty(ob.bid_orders)
+end

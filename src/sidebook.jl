@@ -171,6 +171,7 @@ function pop_order!(
     if !isnothing(order_queue)
         Δvolm = order_queue.total_volume[] # get stats before deletion
         ord = popat_orderid!(order_queue, orderid)
+        isnothing(ord) && return nothing # order not in queue, book unchanged
         Δvolm -= order_queue.total_volume[] # get stats after deletion
 
         # If order deletion depleted price queue, delete the whole queue

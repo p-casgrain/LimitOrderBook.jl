@@ -46,8 +46,8 @@ function submit_limit_order!(
         )
     elseif allows_cross(fill_mode) &&
            !isbuy(side) &&
-           !isnothing(best_ask) &&
-           (limit_price >= best_ask) # order is ask (sell) and can cross
+           !isnothing(best_bid) &&
+           (limit_price <= best_bid) # order is ask (sell) and can cross
         cross_match_lst, remaining_size = _walk_order_book_bysize!(
             ob.bid_orders, Sz(limit_size), Px(limit_price), fill_mode
         )
