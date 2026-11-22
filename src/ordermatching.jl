@@ -181,14 +181,15 @@ function _walk_order_book_byfunds!(
     # Allocate memory for order output
     order_match_lst = Vector{Order{Sz,Px,Oid,Aid}}()
     funds_left = order_funds # remaining quantity to trade
+    spendable = true # false when leftover funds cannot buy even one unit at the best price
     # Perform initial available liquidity check
-    if isallornone(order_mode) && (_size_available(sb, limit_price) < order_size)
+    if isallornone(order_mode) && (_funds_available(sb, limit_price) < order_funds)
         return order_match_lst, funds_left
     end
     # Perform matching logic
     limit_price_check = Base.Fix2(_is_best_price_inside_limit, limit_price)
-    while !isempty(sb.book) && !iszero(funds_left) && limit_price_check(sb) # while book not empty, order not done and best price within limit price
-        price_queue::OrderQueue = popfirst_queue!(sb)
+    while !isempty(sb.book) && !iszero(funds_left) && spendable && limit_price_check(sb) # while book not empty, order not done, funds spendable and best price within limit price
+        price_queue::OrderQueue = _popfirst_queue!(sb)
         if (price_queue.total_volume[] * price_queue.price) <= funds_left # If entire queue is to be wiped out
             append!(order_match_lst, price_queue.queue) # Add all of the orders to the match list
             funds_left -= price_queue.total_volume[] * price_queue.price # decrement what's left to trade
@@ -202,6 +203,14 @@ function _walk_order_book_byfunds!(
                 else # funds_left < best_ord.size # Case 2: Market Order gets wiped out
                     # Return the difference: LO.size-MO.size back to the order book
                     rem_match_size = floor(Sz, funds_left / best_ord.price)
+                    if iszero(rem_match_size) # funds cannot buy even one unit at this price
+                        # Give the order its full size back and stop the walk: leftover
+                        # funds are unspendable here, and matching a zero-size order
+                        # would never decrement funds_left (infinite loop).
+                        pushfirst!(price_queue, best_ord)
+                        spendable = false
+                        break # exits the per-order loop; the queue is re-inserted below
+                    end
                     return_ord = copy_modify_size(best_ord, best_ord.size - rem_match_size)
                     pushfirst!(price_queue, return_ord)
                     # Add remainder to match list & decrement outstanding MO
@@ -213,6 +222,7 @@ function _walk_order_book_byfunds!(
             if !isempty(price_queue) # If price queue wasn't killed, put it back into the OneSidedBook
                 _insert_queue!(sb, price_queue)
             end
+            spendable || break # leftover funds cannot afford any order at the best price
         end
     end
     # Return results

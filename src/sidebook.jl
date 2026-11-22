@@ -34,12 +34,12 @@ Base.isempty(sb::OneSidedBook) = isempty(sb.book)
 function _size_available(sb::OneSidedBook{Sz,Px,Oid,Aid},limit_price::Px) where {Sz,Px,Oid,Aid}
     t = Sz(0)
     if isbidbook(sb)
-        for q in sb.queue
-            (q.price >= limit_price) ? (t += q.total_volume) : break
+        for (_, q) in sb.book
+            (q.price >= limit_price) ? (t += q.total_volume[]) : break
         end
     else
-        for q in sb.queue
-            (q.price <= limit_price) ? (t += q.total_volume) : break
+        for (_, q) in sb.book
+            (q.price <= limit_price) ? (t += q.total_volume[]) : break
         end
     end
     return t
@@ -49,12 +49,12 @@ end
 function _funds_available(sb::OneSidedBook{Sz,Px,Oid,Aid},limit_price::Px) where {Sz,Px,Oid,Aid}
     t = Int64(0.0)
     if isbidbook(sb)
-        for q in sb.queue
-            (q.price >= limit_price) ? (t += Int64(q.total_volume*q.price)) : break
+        for (_, q) in sb.book
+            (q.price >= limit_price) ? (t += Int64(q.total_volume[] * q.price)) : break
         end
     else
-        for q in sb.queue
-            (q.price <= limit_price) ? (t += Int64(q.total_volume*q.price)) : break
+        for (_, q) in sb.book
+            (q.price <= limit_price) ? (t += Int64(q.total_volume[] * q.price)) : break
         end
     end
     return t
@@ -114,7 +114,15 @@ function _insert_queue!(
     pricekey = isaskbook(sb) ? price_queue.price : -price_queue.price
     insert!(sb.book,pricekey,price_queue)
     # update book stats
-    (isnothing(sb.best_price) || (price_queue.price === sb.best_price)) && _update_next_best_price!(sb) # Update price only if best price was changed
+    # The queue comes back from a matching walk, after which best_price points at the
+    # next-best level; a re-inserted partial queue is better than that on either side.
+    if isnothing(sb.best_price)
+        sb.best_price = price_queue.price
+    elseif isbidbook(sb)
+        sb.best_price = max(price_queue.price, sb.best_price)
+    else
+        sb.best_price = min(price_queue.price, sb.best_price)
+    end
     sb.num_orders += price_queue.num_orders[]
     sb.total_volume += price_queue.total_volume[]
     sb.total_volume_funds += Float64(price_queue.total_volume[]*price_queue.price)
