@@ -251,3 +251,56 @@ end
     @test ltt == 0
     @test best_bid_ask(ob) == (nothing, nothing)
 end
+
+@testset "Market order by funds" begin # the byfunds walk called a nonexistent helper (`popfirst_queue!`) and the all-or-none check read `order_size`, undefined in this scope
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    submit_limit_order!(ob, 2, SELL_ORDER, 100.0f0, 5)
+    submit_limit_order!(ob, 3, SELL_ORDER, 101.0f0, 8)
+    # sweeping the 100 level costs exactly 1500
+    matches, leftover = submit_market_order_byfunds!(ob, BUY_ORDER, 1500)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 10), (2, 5)]
+    @test leftover == 0
+    # all-or-none by funds: exactly-spendable funds proceed, one unit more than spendable is killed
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    matches, leftover = submit_market_order_byfunds!(ob, BUY_ORDER, 1000, LimitOrderBook.FILLORKILL_FILLTYPE)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 10)]
+    @test leftover == 0
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    matches, leftover = submit_market_order_byfunds!(ob, BUY_ORDER, 1001, LimitOrderBook.FILLORKILL_FILLTYPE)
+    @test isempty(matches)
+    @test leftover == 1001
+    @test best_bid_ask(ob) == (nothing, 100.0f0)
+    @test ob.ask_orders.total_volume == 10
+end
+
+@testset "By-funds walk stops when leftover cannot buy one unit" begin # with integer share sizes, leftover funds can be smaller than every reachable price; matching a zero-size order looped forever growing the match list
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    submit_limit_order!(ob, 2, SELL_ORDER, 100.0f0, 5)
+    submit_limit_order!(ob, 3, SELL_ORDER, 101.0f0, 8)
+    submit_limit_order!(ob, 4, SELL_ORDER, 102.0f0, 20)
+    # 96 left after taking 4 of the 8 at 101: 96 < 102, so the walk must stop with the leftover unspent
+    matches, leftover = submit_market_order_byfunds!(ob, BUY_ORDER, 2000)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 10), (2, 5), (3, 4)]
+    @test leftover == 96
+    @test ob.ask_orders.total_volume == 4 + 20
+    @test ob.ask_orders.num_orders == 2
+    # the returned order and the untouched level are still tradeable
+    matches, leftover = submit_market_order_byfunds!(ob, BUY_ORDER, 101 * 4)
+    @test [(o.orderid, o.size) for o in matches] == [(3, 4)]
+    @test leftover == 0
+    # all-or-none by funds with the same book: the pre-check passes (2308 >= 2000 available inside 101),
+    # then the walk stops with leftover 96. Fill-as-close-as-possible is the pinned semantics here —
+    # an alternative would reject the order outright when exact whole-unit spending is impossible.
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    submit_limit_order!(ob, 2, SELL_ORDER, 100.0f0, 5)
+    submit_limit_order!(ob, 3, SELL_ORDER, 101.0f0, 8)
+    submit_limit_order!(ob, 4, SELL_ORDER, 102.0f0, 20)
+    matches, leftover = submit_market_order_byfunds!(ob, BUY_ORDER, 2000, LimitOrderBook.FILLORKILL_FILLTYPE)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 10), (2, 5), (3, 4)]
+    @test leftover == 96
+end
