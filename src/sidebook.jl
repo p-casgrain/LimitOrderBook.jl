@@ -34,12 +34,12 @@ Base.isempty(sb::OneSidedBook) = isempty(sb.book)
 function _size_available(sb::OneSidedBook{Sz,Px,Oid,Aid},limit_price::Px) where {Sz,Px,Oid,Aid}
     t = Sz(0)
     if isbidbook(sb)
-        for q in sb.queue
-            (q.price >= limit_price) ? (t += q.total_volume) : break
+        for (_, q) in sb.book
+            (q.price >= limit_price) ? (t += q.total_volume[]) : break
         end
     else
-        for q in sb.queue
-            (q.price <= limit_price) ? (t += q.total_volume) : break
+        for (_, q) in sb.book
+            (q.price <= limit_price) ? (t += q.total_volume[]) : break
         end
     end
     return t
@@ -49,12 +49,12 @@ end
 function _funds_available(sb::OneSidedBook{Sz,Px,Oid,Aid},limit_price::Px) where {Sz,Px,Oid,Aid}
     t = Int64(0.0)
     if isbidbook(sb)
-        for q in sb.queue
-            (q.price >= limit_price) ? (t += Int64(q.total_volume*q.price)) : break
+        for (_, q) in sb.book
+            (q.price >= limit_price) ? (t += Int64(q.total_volume[] * q.price)) : break
         end
     else
-        for q in sb.queue
-            (q.price <= limit_price) ? (t += Int64(q.total_volume*q.price)) : break
+        for (_, q) in sb.book
+            (q.price <= limit_price) ? (t += Int64(q.total_volume[] * q.price)) : break
         end
     end
     return t

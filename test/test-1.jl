@@ -231,3 +231,23 @@ end
     @test ob.bid_orders.num_orders == 0
     @test isempty(ob.bid_orders)
 end
+
+@testset "Fill-or-kill limit order availability check" begin # _size_available/_funds_available iterated a nonexistent field (`sb.queue`) and read the `total_volume` RefValue bare — any FOK limit order crashed
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    submit_limit_order!(ob, 2, SELL_ORDER, 101.0f0, 5)
+    # 15 shares available inside 101 but 20 requested: killed outright, book unchanged
+    new_ord, matches, ltt = submit_limit_order!(ob, 3, BUY_ORDER, 101.0f0, 20, nothing, LimitOrderBook.FILLORKILL_FILLTYPE)
+    @test isnothing(new_ord)
+    @test isempty(matches)
+    @test ltt == 20
+    @test best_bid_ask(ob) == (nothing, 100.0f0)
+    @test ob.ask_orders.num_orders == 2
+    @test ob.ask_orders.total_volume == 15
+    # exactly the available size inside the limit: fills completely
+    new_ord, matches, ltt = submit_limit_order!(ob, 4, BUY_ORDER, 101.0f0, 15, nothing, LimitOrderBook.FILLORKILL_FILLTYPE)
+    @test isnothing(new_ord)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 10), (2, 5)]
+    @test ltt == 0
+    @test best_bid_ask(ob) == (nothing, nothing)
+end
