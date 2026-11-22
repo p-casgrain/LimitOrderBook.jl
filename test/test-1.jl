@@ -304,3 +304,26 @@ end
     @test [(o.orderid, o.size) for o in matches] == [(1, 10), (2, 5), (3, 4)]
     @test leftover == 96
 end
+
+@testset "Partially filled queue keeps the best price" begin # _insert_queue! only refreshed best_price when the re-inserted price `===` the current best, but the walk had already moved best_price to the next level — any partially filled best level left best_bid_ask pointing at the deeper price
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    submit_limit_order!(ob, 2, SELL_ORDER, 101.0f0, 5)
+    # take 7 of the 10 at 100: the queue goes back with 3 shares and is still the best ask
+    matches, ltt = submit_market_order!(ob, BUY_ORDER, 7)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 7)]
+    @test ltt == 0
+    @test best_bid_ask(ob) == (nothing, 100.0f0) # was 101.0f0 before the fix
+    # the remaining 3 shares still trade at 100, not 101
+    matches, ltt = submit_market_order!(ob, BUY_ORDER, 3)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 3)]
+    @test best_bid_ask(ob) == (nothing, 101.0f0)
+    # same story on the byfunds walk: spend 700 of the 1000 at the best level
+    ob = MyLOBType()
+    submit_limit_order!(ob, 1, SELL_ORDER, 100.0f0, 10)
+    submit_limit_order!(ob, 2, SELL_ORDER, 101.0f0, 5)
+    matches, leftover = submit_market_order_byfunds!(ob, BUY_ORDER, 700)
+    @test [(o.orderid, o.size) for o in matches] == [(1, 7)]
+    @test leftover == 0
+    @test best_bid_ask(ob) == (nothing, 100.0f0)
+end

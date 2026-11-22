@@ -114,7 +114,15 @@ function _insert_queue!(
     pricekey = isaskbook(sb) ? price_queue.price : -price_queue.price
     insert!(sb.book,pricekey,price_queue)
     # update book stats
-    (isnothing(sb.best_price) || (price_queue.price === sb.best_price)) && _update_next_best_price!(sb) # Update price only if best price was changed
+    # The queue comes back from a matching walk, after which best_price points at the
+    # next-best level; a re-inserted partial queue is better than that on either side.
+    if isnothing(sb.best_price)
+        sb.best_price = price_queue.price
+    elseif isbidbook(sb)
+        sb.best_price = max(price_queue.price, sb.best_price)
+    else
+        sb.best_price = min(price_queue.price, sb.best_price)
+    end
     sb.num_orders += price_queue.num_orders[]
     sb.total_volume += price_queue.total_volume[]
     sb.total_volume_funds += Float64(price_queue.total_volume[]*price_queue.price)
